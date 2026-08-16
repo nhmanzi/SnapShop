@@ -22,11 +22,12 @@ function money(n) {
 
 export default function Viewfinder() {
   const [DEMO] = useState(() => new URLSearchParams(window.location.search).has("demo"));
-  const [API_BASE] = useState(
-    () =>
+  const [API_BASE] = useState(() =>
+    (
       new URLSearchParams(window.location.search).get("api") ||
       process.env.NEXT_PUBLIC_API_BASE ||
       "http://localhost:8000"
+    ).replace(/\/+$/, "")
   );
 
   const [appState, setAppState] = useState("idle");
