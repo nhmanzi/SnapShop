@@ -30,15 +30,16 @@ export default function Viewfinder() {
     ).replace(/\/+$/, "")
   );
 
-  const [appState, setAppState] = useState("idle");
+  const [appState, setAppState] = useState("landing");
   const [facing, setFacing] = useState("environment");
   const [mirror, setMirror] = useState(false);
-  const [dotClass, setDotClass] = useState("dot");
-  const [statusText, setStatusText] = useState("Live");
+  const [dotClass, setDotClass] = useState("dot off");
+  const [statusText, setStatusText] = useState("Ready");
   const [overlayMsg, setOverlayMsg] = useState(
     "Allow camera access to point and identify, or upload a photo instead."
   );
   const [result, setResult] = useState(null); // { item, sellers, mock } | { error, message }
+  const [cameraTried, setCameraTried] = useState(false);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -46,6 +47,7 @@ export default function Viewfinder() {
   const streamRef = useRef(null);
 
   async function startCamera(nextFacing = facing) {
+    setCameraTried(true);
     if (DEMO) {
       setAppState("idle");
       setDotClass("dot demo");
@@ -75,11 +77,9 @@ export default function Viewfinder() {
   }
 
   useEffect(() => {
-    Promise.resolve().then(() => startCamera("environment"));
     return () => {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function frameToBlob() {
@@ -137,9 +137,19 @@ export default function Viewfinder() {
 
   function handleAgain() {
     const hasStream = !!streamRef.current;
-    setAppState(hasStream || DEMO ? "idle" : "blocked");
-    setDotClass(DEMO ? "dot demo" : hasStream ? "dot" : "dot off");
-    setStatusText(DEMO ? "Demo" : hasStream ? "Live" : "Off");
+    if (hasStream || DEMO) {
+      setAppState("idle");
+      setDotClass(DEMO ? "dot demo" : "dot");
+      setStatusText(DEMO ? "Demo" : "Live");
+    } else if (cameraTried) {
+      setAppState("blocked");
+      setDotClass("dot off");
+      setStatusText("Off");
+    } else {
+      setAppState("landing");
+      setDotClass("dot off");
+      setStatusText("Ready");
+    }
   }
 
   function handleSwitch() {
@@ -214,6 +224,23 @@ export default function Viewfinder() {
             Upload
           </button>
         </div>
+      </div>
+
+      <div className="landing">
+        <svg className="ic" viewBox="0 0 24 24">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+        <div className="wordmark">
+          Snap<span>Shop</span>
+        </div>
+        <p>Find what it is — and who sells it near you.</p>
+        <button className="upload-btn" onClick={() => startCamera("environment")}>
+          Enable camera to scan
+        </button>
+        <button className="txt-btn" onClick={pickFile} style={{ marginTop: "16px" }}>
+          Or upload a photo instead
+        </button>
       </div>
 
       <div className="overlay">

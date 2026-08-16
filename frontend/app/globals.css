@@ -148,14 +148,16 @@ body{
   font-weight:600; font-size:15px; cursor:pointer; letter-spacing:-.01em}
 .again:active{background:var(--ink-2)}
 
-/* ---------- camera-off / error overlay ---------- */
-.overlay{position:absolute; inset:0; z-index:7; display:none; flex-direction:column;
+/* ---------- landing / camera-off / error overlay ---------- */
+.landing, .overlay{position:absolute; inset:0; z-index:7; display:none; flex-direction:column;
   align-items:center; justify-content:center; text-align:center; padding:32px;
   background:linear-gradient(180deg,#15171E,#0E0F14)}
+#app.state-landing .landing{display:flex}
 #app.state-blocked .overlay{display:flex}
-.overlay .ic{width:40px; height:40px; stroke:var(--signal); fill:none; stroke-width:1.6; margin-bottom:20px}
+.landing .ic, .overlay .ic{width:40px; height:40px; stroke:var(--signal); fill:none; stroke-width:1.6; margin-bottom:20px}
+.landing .wordmark{font-size:30px; margin-bottom:10px}
 .overlay h2{font-family:var(--font-display),sans-serif; font-weight:700; font-size:20px; letter-spacing:-.01em}
-.overlay p{color:var(--text-dim); font-size:14px; margin:10px 0 24px; max-width:280px; line-height:1.5}
+.landing p, .overlay p{color:var(--text-dim); font-size:14px; margin:10px 0 24px; max-width:280px; line-height:1.5}
 .upload-btn{padding:14px 26px; border-radius:14px; background:var(--signal);
   color:var(--ink); border:none; font-family:var(--font-body),sans-serif; font-weight:600;
   font-size:15px; cursor:pointer}
