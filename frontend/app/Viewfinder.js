@@ -61,7 +61,10 @@ export default function Viewfinder() {
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play?.().catch(() => {});
+      }
       setMirror(nextFacing === "user");
       setAppState("idle");
       setDotClass("dot");
@@ -115,6 +118,7 @@ export default function Viewfinder() {
   }
 
   function capture() {
+    if (videoRef.current) videoRef.current.pause(); // freeze on the captured frame, no live feed while processing
     setAppState("capturing");
     if (navigator.vibrate) navigator.vibrate(12);
     setTimeout(async () => {
@@ -138,6 +142,7 @@ export default function Viewfinder() {
   function handleAgain() {
     const hasStream = !!streamRef.current;
     if (hasStream || DEMO) {
+      if (videoRef.current) videoRef.current.play?.().catch(() => {});
       setAppState("idle");
       setDotClass(DEMO ? "dot demo" : "dot");
       setStatusText(DEMO ? "Demo" : "Live");
