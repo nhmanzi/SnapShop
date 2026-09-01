@@ -39,6 +39,8 @@ def test_matching_finds_local_sellers():
     assert scores == sorted(scores, reverse=True)
     # every match is an earbuds seller in Kigali
     assert all(s.match_score >= 0.5 for s in sellers)
+    # matches explain themselves (category/brand/keyword-overlap reasons)
+    assert all(s.match_reason for s in sellers)
 
 
 def test_recognize_endpoint_full_response():
@@ -58,3 +60,26 @@ def test_upload_endpoint():
     )
     assert r.status_code == 200
     assert r.json()["item"]["category"] == "earbuds"
+
+
+def test_seller_submission_succeeds_without_db():
+    r = client.post("/sellers/submit", json={
+        "shop_name": "Test Shop", "channel": "shop", "contact": "+250700000000",
+        "location": "Kigali", "product": "Test Earbuds", "category": "earbuds",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "received"
+    assert body["saved"] is False  # no DATABASE_URL in tests — degrades gracefully
+
+
+def test_notify_me_succeeds_without_db():
+    r = client.post("/notify-me", json={"contact": "+250700000000", "category": "earbuds"})
+    assert r.status_code == 200
+    assert r.json()["status"] == "received"
+
+
+def test_feedback_succeeds_without_db():
+    r = client.post("/feedback", json={"category": "earbuds", "helpful": True})
+    assert r.status_code == 200
+    assert r.json()["status"] == "received"

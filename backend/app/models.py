@@ -24,6 +24,7 @@ class SellerMatch(BaseModel):
     contact: str
     price_rwf: Optional[int] = None
     match_score: float = 0.0
+    match_reason: Optional[str] = None
     matched_product: Optional[str] = None
 
 
@@ -32,3 +33,31 @@ class RecognizeResponse(BaseModel):
     item: RecognizedItem
     sellers: list[SellerMatch]
     mock: bool = False       # True when recognition ran in mock mode
+
+
+class SellerSubmission(BaseModel):
+    """A seller-submitted listing, awaiting review before it feeds into matching."""
+    shop_name: str
+    channel: str            # "shop", "instagram", "whatsapp", "marketplace"
+    contact: str
+    location: str
+    product: str
+    category: str
+    price_rwf: Optional[int] = None
+
+
+class NotifyRequest(BaseModel):
+    """A demand signal captured when a scan finds no local seller match."""
+    contact: str
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    note: Optional[str] = None
+
+
+class FeedbackRequest(BaseModel):
+    """Was a recognition + match result actually correct/useful?"""
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    confidence: Optional[float] = None
+    helpful: bool
+    note: Optional[str] = None

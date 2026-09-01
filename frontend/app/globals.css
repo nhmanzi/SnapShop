@@ -114,9 +114,14 @@ body{
 .id-name{font-family:var(--font-display),sans-serif; font-weight:800; font-size:30px;
   letter-spacing:-.02em; line-height:1; text-transform:capitalize}
 .id-brand{font-size:13px; color:var(--ink-text-dim); margin-top:8px; min-height:1em}
-.conf{font-family:var(--font-mono),monospace; font-size:12px; text-align:right; flex-shrink:0}
-.conf b{display:block; font-size:19px; color:var(--ink-text)}
+.conf{font-family:var(--font-mono),monospace; font-size:12px; text-align:center; flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; gap:2px}
 .conf span{color:var(--ink-text-dim); font-size:10px; text-transform:uppercase; letter-spacing:.08em}
+.conf-ring{overflow:visible}
+.conf-ring-bg{fill:none; stroke:var(--line-paper); stroke-width:4}
+.conf-ring-fg{fill:none; stroke:var(--local); stroke-width:4; stroke-linecap:round;
+  transform:rotate(-90deg); transform-origin:50% 50%; transition:stroke-dashoffset .6s var(--sheet-ease)}
+.conf-ring-text{font-family:var(--font-mono),monospace; font-size:12px; font-weight:700; fill:var(--ink-text)}
 
 .tags{display:flex; flex-wrap:wrap; gap:7px; margin:16px 0 4px}
 .tag{font-size:11px; font-family:var(--font-mono),monospace; padding:5px 10px; border-radius:20px;
@@ -126,8 +131,8 @@ body{
 .buy-label{font-family:var(--font-mono),monospace; font-size:11px; text-transform:uppercase;
   letter-spacing:.1em; color:var(--ink-text-dim); margin-bottom:12px}
 
-.seller{display:flex; align-items:center; gap:14px; padding:13px 0;
-  border-bottom:1px solid var(--line-paper)}
+.seller{display:flex; align-items:center; gap:10px; padding:13px 0;
+  border-bottom:1px solid var(--line-paper); text-decoration:none; color:inherit}
 .seller:last-child{border-bottom:none}
 .seller-main{flex:1; min-width:0}
 .seller-name{font-weight:600; font-size:15px; letter-spacing:-.01em}
@@ -136,12 +141,31 @@ body{
 .chan{font-family:var(--font-mono),monospace; font-size:10px; text-transform:uppercase;
   letter-spacing:.05em; padding:2px 7px; border-radius:5px; background:var(--ink);
   color:var(--paper)}
+.match-why{font-size:10px; color:var(--ink-text-dim); margin-top:3px; font-style:italic}
 .seller-right{text-align:right; flex-shrink:0}
 .price{font-family:var(--font-mono),monospace; font-weight:700; font-size:15px; white-space:nowrap}
 .price small{font-size:10px; color:var(--ink-text-dim); font-weight:400}
 .score{font-family:var(--font-mono),monospace; font-size:10px; color:var(--local); margin-top:3px}
+.chevron{font-size:20px; color:var(--ink-text-dim); flex-shrink:0}
 
 .empty{padding:24px 0; text-align:center; color:var(--ink-text-dim); font-size:14px; line-height:1.5}
+
+.notify-form{display:flex; gap:8px; margin-top:14px}
+.notify-input{flex:1; min-width:0; padding:10px 12px; border-radius:10px; border:1px solid var(--line-paper);
+  background:var(--paper-2); font-family:var(--font-body),sans-serif; font-size:13px; color:var(--ink-text)}
+.notify-input:focus{outline:2px solid var(--signal); outline-offset:1px}
+.notify-btn{padding:10px 16px; border-radius:10px; border:none; background:var(--ink); color:var(--paper);
+  font-family:var(--font-body),sans-serif; font-weight:600; font-size:13px; cursor:pointer; white-space:nowrap}
+.notify-btn:disabled{opacity:.4; cursor:default}
+.notify-sent{margin-top:10px; color:var(--local); font-size:13px; font-weight:600}
+
+.feedback-row{display:flex; align-items:center; gap:10px; margin-top:18px; font-size:13px; color:var(--ink-text-dim)}
+.fb-btn{background:var(--paper-2); border:none; border-radius:10px; width:36px; height:36px; font-size:16px;
+  cursor:pointer; display:grid; place-items:center; transition:transform .12s ease, opacity .12s ease}
+.fb-btn:active{transform:scale(.9)}
+.fb-btn:disabled{opacity:.4}
+.fb-btn.fb-active{opacity:1; background:var(--paper)}
+.feedback-thanks{color:var(--local); font-weight:600}
 
 .again{width:100%; margin-top:20px; padding:15px; border:none; border-radius:14px;
   background:var(--ink); color:var(--paper); font-family:var(--font-body),sans-serif;
@@ -161,6 +185,23 @@ body{
 .upload-btn{padding:14px 26px; border-radius:14px; background:var(--signal);
   color:var(--ink); border:none; font-family:var(--font-body),sans-serif; font-weight:600;
   font-size:15px; cursor:pointer}
+
+/* ---------- list-your-shop page ---------- */
+.shop-page{min-height:100dvh; width:100%; background:var(--ink); display:flex;
+  align-items:center; justify-content:center; padding:24px; box-sizing:border-box}
+.shop-card{width:100%; max-width:420px; background:var(--paper); color:var(--ink-text);
+  border-radius:24px; padding:30px 26px; box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.shop-card h1{font-family:var(--font-display),sans-serif; font-weight:800; font-size:26px; letter-spacing:-.02em}
+.shop-card > p{color:var(--ink-text-dim); font-size:14px; margin:8px 0 22px; line-height:1.5}
+.shop-form{display:flex; flex-direction:column; gap:14px}
+.shop-form label{display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; color:var(--ink-text-dim)}
+.shop-form input, .shop-form select{padding:12px 14px; border-radius:12px; border:1px solid var(--line-paper);
+  background:var(--paper-2); font-family:var(--font-body),sans-serif; font-size:14px; color:var(--ink-text)}
+.shop-form input:focus, .shop-form select:focus{outline:2px solid var(--signal); outline-offset:1px}
+.shop-form button{margin-top:6px; width:100%}
+.shop-form button:disabled{opacity:.5; cursor:default}
+.shop-error{color:#c0392b; font-size:13px; margin-top:2px}
+.shop-back{display:inline-block; text-align:center; text-decoration:none; width:100%; box-sizing:border-box}
 
 .hidden{display:none !important}
 @media (prefers-reduced-motion:reduce){

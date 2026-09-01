@@ -16,8 +16,9 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .community import save_feedback, save_notify_request, save_seller_submission
 from .matching import match
-from .models import RecognizeResponse
+from .models import FeedbackRequest, NotifyRequest, RecognizeResponse, SellerSubmission
 from .recognition import _mock_enabled, recognize
 from .sellers import get_sellers, sellers_source
 
@@ -66,3 +67,24 @@ async def recognize_upload(file: UploadFile = File(...)) -> RecognizeResponse:
     item, used_mock = recognize(b64, media_type)
     sellers = match(item)
     return RecognizeResponse(item=item, sellers=sellers, mock=used_mock)
+
+
+@app.post("/sellers/submit")
+def submit_seller(req: SellerSubmission) -> dict:
+    """List a shop — reviewed before it feeds into live matching."""
+    saved = save_seller_submission(req)
+    return {"status": "received", "saved": saved}
+
+
+@app.post("/notify-me")
+def notify_me(req: NotifyRequest) -> dict:
+    """Capture demand for an item with no current local match."""
+    saved = save_notify_request(req)
+    return {"status": "received", "saved": saved}
+
+
+@app.post("/feedback")
+def submit_feedback(req: FeedbackRequest) -> dict:
+    """Was a recognition + match result actually correct/useful?"""
+    saved = save_feedback(req)
+    return {"status": "received", "saved": saved}

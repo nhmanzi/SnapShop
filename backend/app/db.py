@@ -36,3 +36,8 @@ def get_session():
         yield session
     finally:
         session.close()
+
+
+def ensure_tables(*model_classes) -> None:
+    """Create tables for the given models if they don't exist yet (idempotent)."""
+    Base.metadata.create_all(get_engine(), tables=[m.__table__ for m in model_classes], checkfirst=True)

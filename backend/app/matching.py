@@ -57,11 +57,11 @@ def match(item: RecognizedItem, threshold: float = 0.5, limit: int = 5) -> list[
     for seller in get_sellers():
         best = None
         for product in seller.get("inventory", []):
-            s, _reason = _score(item, product)
+            s, reason = _score(item, product)
             if best is None or s > best[0]:
-                best = (s, product)
+                best = (s, reason, product)
         if best and best[0] >= threshold:
-            score, product = best
+            score, reason, product = best
             results.append(SellerMatch(
                 seller_id=seller["seller_id"],
                 name=seller["name"],
@@ -70,6 +70,7 @@ def match(item: RecognizedItem, threshold: float = 0.5, limit: int = 5) -> list[
                 contact=seller["contact"],
                 price_rwf=product.get("price_rwf"),
                 match_score=score,
+                match_reason=reason or None,
                 matched_product=product.get("product"),
             ))
     results.sort(key=lambda m: m.match_score, reverse=True)

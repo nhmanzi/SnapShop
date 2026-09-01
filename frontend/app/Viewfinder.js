@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 const DEMO_RESULT = {
@@ -18,6 +19,38 @@ const DEMO_RESULT = {
 
 function money(n) {
   return n == null ? "—" : n.toLocaleString("en-US");
+}
+
+// Turn a seller's channel + contact into something tappable.
+function contactHref(seller) {
+  const c = (seller.contact || "").trim();
+  if (!c) return null;
+  if (seller.channel === "shop") {
+    const digits = c.replace(/[^\d+]/g, "");
+    return digits ? `tel:${digits}` : null;
+  }
+  if (seller.channel === "whatsapp" || seller.channel === "instagram" || seller.channel === "marketplace") {
+    return /^https?:\/\//i.test(c) ? c : `https://${c}`;
+  }
+  return null;
+}
+
+function ConfidenceRing({ value }) {
+  const pct = value == null ? 0 : Math.max(0, Math.min(1, value));
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width="56" height="56" viewBox="0 0 56 56" className="conf-ring">
+      <circle cx="28" cy="28" r={r} className="conf-ring-bg" />
+      <circle
+        cx="28" cy="28" r={r} className="conf-ring-fg"
+        style={{ strokeDasharray: c, strokeDashoffset: c * (1 - pct) }}
+      />
+      <text x="28" y="32" textAnchor="middle" className="conf-ring-text">
+        {value == null ? "—" : Math.round(pct * 100) + "%"}
+      </text>
+    </svg>
+  );
 }
 
 export default function Viewfinder() {
@@ -40,6 +73,9 @@ export default function Viewfinder() {
   );
   const [result, setResult] = useState(null); // { item, sellers, mock } | { error, message }
   const [cameraTried, setCameraTried] = useState(false);
+  const [notifyContact, setNotifyContact] = useState("");
+  const [notifySent, setNotifySent] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(null); // null | true | false
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -102,6 +138,9 @@ export default function Viewfinder() {
 
   async function identify(blob) {
     setAppState("identifying");
+    setNotifyContact("");
+    setNotifySent(false);
+    setFeedbackSent(null);
     if (DEMO) {
       setTimeout(() => render(DEMO_RESULT), 1300);
       return;
@@ -128,15 +167,45 @@ export default function Viewfinder() {
   }
 
   function render(data) {
-    setResult({ item: data.item || {}, sellers: data.sellers || [], mock: !!data.mock });
+    const sellers = data.sellers || [];
+    setResult({ item: data.item || {}, sellers, mock: !!data.mock });
     setDotClass(data.mock ? "dot demo" : "dot");
     setStatusText(data.mock ? "Demo data" : "Live");
     setAppState("result");
+    if (sellers.length > 0 && navigator.vibrate) navigator.vibrate([15, 40, 15]);
   }
 
   function renderError(msg) {
     setResult({ error: true, message: msg || "" });
     setAppState("result");
+  }
+
+  async function handleNotifySubmit(e) {
+    e.preventDefault();
+    if (!notifyContact.trim()) return;
+    setNotifySent(true); // optimistic — this is a best-effort signal, not worth blocking the UI on
+    try {
+      await fetch(API_BASE + "/notify-me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contact: notifyContact.trim(), category: it?.category, brand: it?.brand }),
+      });
+    } catch {
+      // best-effort; already showing confirmation
+    }
+  }
+
+  async function submitFeedback(helpful) {
+    setFeedbackSent(helpful);
+    try {
+      await fetch(API_BASE + "/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: it?.category, brand: it?.brand, confidence: it?.confidence, helpful }),
+      });
+    } catch {
+      // best-effort; already showing confirmation
+    }
   }
 
   function handleAgain() {
@@ -177,7 +246,6 @@ export default function Viewfinder() {
   const brandLine = it ? [it.brand, it.model].filter(Boolean).join(" ") : "";
   const idName = it ? it.category || "Unknown" : result?.error ? "Hmm" : "—";
   const idBrand = it ? brandLine || (it.visible_text ? `"${it.visible_text}"` : "") : "";
-  const confVal = it && it.confidence != null ? Math.round(it.confidence * 100) + "%" : "—";
 
   return (
     <div id="app" className={`state-${appState}`}>
@@ -246,6 +314,9 @@ export default function Viewfinder() {
         <button className="txt-btn" onClick={pickFile} style={{ marginTop: "16px" }}>
           Or upload a photo instead
         </button>
+        <Link href="/list-your-shop" className="txt-btn" style={{ marginTop: "6px", opacity: 0.6 }}>
+          Have a shop? List it here
+        </Link>
       </div>
 
       <div className="overlay">
@@ -268,7 +339,7 @@ export default function Viewfinder() {
             <div className="id-brand">{idBrand}</div>
           </div>
           <div className="conf">
-            <b>{confVal}</b>
+            <ConfidenceRing value={it?.confidence} />
             <span>match</span>
           </div>
         </div>
@@ -289,27 +360,80 @@ export default function Viewfinder() {
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px" }}>{result.message}</span>
             </div>
           ) : result && result.sellers.length === 0 ? (
-            <div className="empty">No local sellers matched yet. As the seller index grows, matches will appear here.</div>
+            <div className="empty">
+              No local sellers matched yet. As the seller index grows, matches will appear here.
+              {notifySent ? (
+                <div className="notify-sent">We&apos;ll let you know when one lists it.</div>
+              ) : (
+                <form className="notify-form" onSubmit={handleNotifySubmit}>
+                  <input
+                    type="text"
+                    inputMode="tel"
+                    placeholder="Your phone or email"
+                    value={notifyContact}
+                    onChange={(e) => setNotifyContact(e.target.value)}
+                    className="notify-input"
+                  />
+                  <button type="submit" className="notify-btn" disabled={!notifyContact.trim()}>
+                    Notify me
+                  </button>
+                </form>
+              )}
+            </div>
           ) : (
-            result?.sellers.map((s, i) => (
-              <div className="seller" key={i}>
-                <div className="seller-main">
-                  <div className="seller-name">{s.name}</div>
-                  <div className="seller-meta">
-                    <span className="chan">{s.channel}</span>
-                    {s.location}
+            result?.sellers.map((s, i) => {
+              const href = contactHref(s);
+              const Tag = href ? "a" : "div";
+              return (
+                <Tag
+                  className="seller"
+                  key={i}
+                  href={href || undefined}
+                  target={href ? "_blank" : undefined}
+                  rel={href ? "noopener noreferrer" : undefined}
+                >
+                  <div className="seller-main">
+                    <div className="seller-name">{s.name}</div>
+                    <div className="seller-meta">
+                      <span className="chan">{s.channel}</span>
+                      {s.location}
+                    </div>
+                    {s.match_reason && <div className="match-why">Matched on {s.match_reason}</div>}
                   </div>
-                </div>
-                <div className="seller-right">
-                  <div className="price">
-                    {money(s.price_rwf)} <small>RWF</small>
+                  <div className="seller-right">
+                    <div className="price">
+                      {money(s.price_rwf)} <small>RWF</small>
+                    </div>
+                    <div className="score">{Math.round((s.match_score || 0) * 100)}% match</div>
                   </div>
-                  <div className="score">{Math.round((s.match_score || 0) * 100)}% match</div>
-                </div>
-              </div>
-            ))
+                  {href && <span className="chevron">›</span>}
+                </Tag>
+              );
+            })
           )}
         </div>
+        {it && (
+          <div className="feedback-row">
+            <span>Was this right?</span>
+            <button
+              className={`fb-btn${feedbackSent === true ? " fb-active" : ""}`}
+              onClick={() => submitFeedback(true)}
+              aria-label="Yes, correct"
+              disabled={feedbackSent !== null}
+            >
+              👍
+            </button>
+            <button
+              className={`fb-btn${feedbackSent === false ? " fb-active" : ""}`}
+              onClick={() => submitFeedback(false)}
+              aria-label="No, incorrect"
+              disabled={feedbackSent !== null}
+            >
+              👎
+            </button>
+            {feedbackSent !== null && <span className="feedback-thanks">Thanks!</span>}
+          </div>
+        )}
         <button className="again" onClick={handleAgain}>
           Scan again
         </button>

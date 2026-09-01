@@ -4,7 +4,7 @@ Only imported lazily (see app.sellers) when a database is actually in use.
 """
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 
@@ -36,3 +36,44 @@ class ProductRow(Base):
     price_rwf = Column(Integer, nullable=True)
 
     seller = relationship("SellerRow", back_populates="products")
+
+
+class SellerSubmissionRow(Base):
+    """A seller-submitted listing awaiting review — does not feed into matching directly."""
+    __tablename__ = "seller_submissions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    shop_name = Column(String, nullable=False)
+    channel = Column(String, nullable=False)
+    contact = Column(String, nullable=False)
+    location = Column(String, nullable=False)
+    product = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+    price_rwf = Column(Integer, nullable=True)
+    status = Column(String, nullable=False, default="pending")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class NotifyRequestRow(Base):
+    """A demand signal captured when a scan finds no local seller match."""
+    __tablename__ = "notify_requests"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    contact = Column(String, nullable=False)
+    category = Column(String, nullable=True)
+    brand = Column(String, nullable=True)
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class FeedbackRow(Base):
+    """User feedback on whether a recognition + match result was correct/useful."""
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String, nullable=True)
+    brand = Column(String, nullable=True)
+    confidence = Column(Float, nullable=True)
+    helpful = Column(Boolean, nullable=False)
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
