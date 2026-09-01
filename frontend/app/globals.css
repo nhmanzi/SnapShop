@@ -38,12 +38,26 @@ body{
 .b.br{bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 6px 0}
 @keyframes breathe{0%,100%{opacity:.55}50%{opacity:1}}
 
-/* scan line during identify */
-.scanline{position:absolute; left:6%; right:6%; height:2px; top:8%;
-  background:linear-gradient(90deg,transparent,var(--signal),transparent);
-  opacity:0; border-radius:2px}
-#app.state-identifying .scanline{opacity:1; animation:sweep 1.15s ease-in-out infinite}
-@keyframes sweep{0%{top:8%}50%{top:90%}100%{top:8%}}
+/* radar sweep + detection blips during identify */
+.radar{position:absolute; inset:0; width:100%; height:100%; opacity:0}
+#app.state-identifying .radar{opacity:1}
+.radar-sweep{transform-origin:100px 100px}
+#app.state-identifying .radar-sweep{animation:radarSpin 2.2s linear infinite}
+@keyframes radarSpin{to{transform:rotate(360deg)}}
+.radar-ring{fill:none; stroke:var(--signal); stroke-width:1.5; opacity:0; transform-origin:100px 100px}
+#app.state-identifying .radar-ring-1{animation:radarPing 2.2s ease-out infinite}
+#app.state-identifying .radar-ring-2{animation:radarPing 2.2s ease-out infinite .7s}
+#app.state-identifying .radar-ring-3{animation:radarPing 2.2s ease-out infinite 1.4s}
+@keyframes radarPing{0%{r:18; opacity:.6}100%{r:78; opacity:0}}
+.radar-core{fill:var(--signal)}
+#app.state-identifying .radar-core{animation:radarCore 1.1s ease-in-out infinite}
+@keyframes radarCore{0%,100%{opacity:.6; r:3}50%{opacity:1; r:5}}
+.blip{fill:var(--signal); opacity:0}
+#app.state-identifying .blip{animation:blipPop 2.2s ease-out infinite}
+@keyframes blipPop{
+  0%{opacity:0; r:1} 6%{opacity:1; r:5} 18%{opacity:.9; r:4}
+  34%{opacity:0; r:2} 100%{opacity:0; r:2}
+}
 
 #app.state-identifying .bracket-box{transform:scale(.9)}
 #app.state-identifying .b{animation:none; opacity:1}

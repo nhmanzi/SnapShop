@@ -255,7 +255,26 @@ export default function Viewfinder() {
         <div className="frame">
           <div className="bracket-box">
             <i className="b tl" /><i className="b tr" /><i className="b bl" /><i className="b br" />
-            <div className="scanline" />
+            <svg className="radar" viewBox="0 0 200 200">
+              <defs>
+                <linearGradient id="radarGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="var(--signal)" stopOpacity="0.55" />
+                  <stop offset="100%" stopColor="var(--signal)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <circle cx="100" cy="100" r="70" className="radar-ring radar-ring-1" />
+              <circle cx="100" cy="100" r="70" className="radar-ring radar-ring-2" />
+              <circle cx="100" cy="100" r="70" className="radar-ring radar-ring-3" />
+              <g className="radar-sweep">
+                <path d="M100,100 L100,30 A70,70 0 0,1 148,58 Z" fill="url(#radarGrad)" />
+              </g>
+              <circle cx="155" cy="100" r="4" className="blip" style={{ animationDelay: "0s" }} />
+              <circle cx="113" cy="140" r="4" className="blip" style={{ animationDelay: ".44s" }} />
+              <circle cx="52" cy="135" r="4" className="blip" style={{ animationDelay: ".88s" }} />
+              <circle cx="61" cy="72" r="4" className="blip" style={{ animationDelay: "1.32s" }} />
+              <circle cx="118" cy="45" r="4" className="blip" style={{ animationDelay: "1.76s" }} />
+              <circle cx="100" cy="100" r="4" className="radar-core" />
+            </svg>
           </div>
         </div>
         <div className="flash" />
