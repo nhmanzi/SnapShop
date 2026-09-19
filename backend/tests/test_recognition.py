@@ -128,6 +128,18 @@ def test_admin_sellers_and_notify_requests_require_auth():
     assert client.get("/admin/notify-requests").status_code == 401
 
 
+def test_admin_summary_requires_auth():
+    assert client.get("/admin/summary").status_code == 401
+
+
+def test_summary_counts_are_zero_without_db():
+    from app.admin import get_summary_counts
+
+    assert get_summary_counts() == {
+        "pending": 0, "approved": 0, "rejected": 0, "sellers": 0, "demand": 0,
+    }
+
+
 def test_admin_submissions_rejects_bad_status_value():
     # Auth is checked as a dependency, so a bogus status still needs a valid
     # token to reach the validation — confirms the check exists either way.

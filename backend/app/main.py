@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from .admin import (
     approve_submission,
     check_token,
+    get_summary_counts,
     list_live_sellers,
     list_notify_requests,
     list_submissions,
@@ -31,6 +32,7 @@ from .models import (
     AdminNotifyRequest,
     AdminSeller,
     AdminSubmission,
+    AdminSummary,
     FeedbackRequest,
     NotifyRequest,
     RecognizeResponse,
@@ -163,6 +165,12 @@ def admin_reject(submission_id: int) -> dict:
     """Discard a submission without adding it to the catalogue."""
     ok = reject_submission(submission_id)
     return {"status": "rejected" if ok else "failed"}
+
+
+@app.get("/admin/summary", response_model=AdminSummary, dependencies=[Depends(require_admin)])
+def admin_summary() -> dict:
+    """Counts for the dashboard's stat cards."""
+    return get_summary_counts()
 
 
 @app.get("/admin/sellers", response_model=list[AdminSeller], dependencies=[Depends(require_admin)])

@@ -99,6 +99,15 @@ class AdminSeller(BaseModel):
     products: list[AdminProduct] = Field(default_factory=list)
 
 
+class AdminSummary(BaseModel):
+    """Counts for the dashboard's stat cards."""
+    pending: int
+    approved: int
+    rejected: int
+    sellers: int
+    demand: int
+
+
 class AdminNotifyRequest(BaseModel):
     """A notify-me request — a shopper's unmatched demand signal."""
     id: int

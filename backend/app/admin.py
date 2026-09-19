@@ -192,6 +192,30 @@ def list_live_sellers() -> list[dict]:
         return []
 
 
+def get_summary_counts() -> dict:
+    """Cheap counts for the dashboard's stat cards — no row bodies fetched."""
+    zeros = {"pending": 0, "approved": 0, "rejected": 0, "sellers": 0, "demand": 0}
+    if not is_db_configured():
+        return zeros
+    try:
+        from .db import ensure_tables, get_session
+        from .db_models import NotifyRequestRow, SellerRow, SellerSubmissionRow
+
+        ensure_tables(SellerSubmissionRow, SellerRow, NotifyRequestRow)
+        with get_session() as session:
+            q = session.query(SellerSubmissionRow)
+            return {
+                "pending": q.filter(SellerSubmissionRow.status == "pending").count(),
+                "approved": q.filter(SellerSubmissionRow.status == "approved").count(),
+                "rejected": q.filter(SellerSubmissionRow.status == "rejected").count(),
+                "sellers": session.query(SellerRow).count(),
+                "demand": session.query(NotifyRequestRow).count(),
+            }
+    except Exception:
+        logger.warning("Could not compute summary counts", exc_info=True)
+        return zeros
+
+
 def list_notify_requests() -> list[dict]:
     """Unmatched-demand signals — items a shopper looked for but couldn't find, newest first."""
     if not is_db_configured():
