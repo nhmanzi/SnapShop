@@ -19,6 +19,8 @@ class SellerRow(Base):
     channel = Column(String, nullable=False)
     location = Column(String, nullable=False)
     contact = Column(String, nullable=False)
+    pin_hash = Column(String, nullable=True)  # PBKDF2-HMAC hash, set on self-registration
+    pin_salt = Column(String, nullable=True)  # per-seller random salt, hex-encoded
 
     products = relationship("ProductRow", back_populates="seller", cascade="all, delete-orphan")
 

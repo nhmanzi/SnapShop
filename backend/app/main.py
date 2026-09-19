@@ -36,9 +36,13 @@ from .models import (
     FeedbackRequest,
     NotifyRequest,
     RecognizeResponse,
+    SellerDashboard,
+    SellerLoginRequest,
+    SellerRegisterRequest,
     SellerSubmission,
 )
 from .recognition import _mock_enabled, recognize
+from .seller_auth import get_seller_dashboard, register_seller, verify_seller
 from .sellers import get_sellers, sellers_source
 from .storage import upload_product_photo
 
@@ -115,6 +119,64 @@ async def submit_seller(
     data = SellerSubmission(
         shop_name=shop_name, channel=channel, contact=contact, location=location,
         product=product, category=category, price_rwf=price_rwf, image_url=image_url,
+    )
+    saved = save_seller_submission(data)
+    return {"status": "received", "saved": saved}
+
+
+@app.post("/sellers/register")
+def sellers_register(req: SellerRegisterRequest) -> dict:
+    """Create a seller identity once, so every later product reuses these details
+    instead of being retyped — retyping is what causes duplicate sellers."""
+    ok, message = register_seller(req.shop_name, req.channel, req.contact, req.location, req.pin)
+    return {"ok": ok, "message": message}
+
+
+@app.post("/sellers/login", response_model=dict)
+def sellers_login(req: SellerLoginRequest) -> dict:
+    seller = verify_seller(req.contact, req.pin)
+    if seller is None:
+        raise HTTPException(status_code=401, detail="Invalid contact or PIN")
+    return seller
+
+
+def require_seller(x_seller_contact: str = Header(default=""), x_seller_pin: str = Header(default="")) -> dict:
+    seller = verify_seller(x_seller_contact, x_seller_pin)
+    if seller is None:
+        raise HTTPException(status_code=401, detail="Invalid contact or PIN")
+    return seller
+
+
+@app.get("/sellers/me", response_model=SellerDashboard)
+def sellers_me(seller: dict = Depends(require_seller)) -> dict:
+    """Everything the logged-in seller sees about their own shop."""
+    data = get_seller_dashboard(seller["contact"])
+    return {"seller": seller, **data}
+
+
+@app.post("/sellers/me/products")
+async def sellers_add_product(
+    seller: dict = Depends(require_seller),
+    product: str = Form(...),
+    category: str = Form(...),
+    price_rwf: Optional[int] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+) -> dict:
+    """Add another product under the logged-in seller's own identity.
+
+    Shop details come from the verified seller record, not the request —
+    the whole point of logging in is to never retype them.
+    """
+    image_url = None
+    if photo is not None:
+        raw = await photo.read()
+        if raw:
+            image_url = upload_product_photo(raw, photo.content_type or "image/jpeg")
+
+    data = SellerSubmission(
+        shop_name=seller["name"], channel=seller["channel"], contact=seller["contact"],
+        location=seller["location"], product=product, category=category,
+        price_rwf=price_rwf, image_url=image_url,
     )
     saved = save_seller_submission(data)
     return {"status": "received", "saved": saved}

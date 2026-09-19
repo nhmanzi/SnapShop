@@ -217,6 +217,27 @@ body{
 .shop-error{color:#c0392b; font-size:13px; margin-top:2px}
 .shop-back{display:inline-block; text-align:center; text-decoration:none; width:100%; box-sizing:border-box}
 .shop-photo-preview{width:100%; max-height:180px; object-fit:cover; border-radius:12px; margin-top:-4px}
+.shop-choice{display:flex; flex-direction:column; gap:10px}
+.shop-secondary-btn{padding:14px 26px; border-radius:14px; background:var(--paper-2); color:var(--ink-text);
+  border:1px solid var(--line-paper); font-family:var(--font-body),sans-serif; font-weight:600; font-size:14px; cursor:pointer}
+.shop-link-btn{background:none; border:none; color:var(--ink-text-dim); font-family:var(--font-body),sans-serif;
+  font-weight:600; font-size:13px; cursor:pointer; padding:10px 0; text-decoration:underline}
+.shop-sent-msg{color:var(--local); font-size:13px; font-weight:600; margin-top:2px}
+
+/* ---------- seller dashboard ---------- */
+.shop-dash-page{min-height:100dvh; width:100%; background:var(--paper); color:var(--ink-text)}
+.shop-dash{max-width:640px; margin:0 auto; padding:28px 20px 60px; box-sizing:border-box}
+.shop-dash-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:24px}
+.shop-dash-head h1{font-family:var(--font-display),sans-serif; font-weight:800; font-size:24px; letter-spacing:-.02em}
+.shop-dash-sub{font-size:13px; color:var(--ink-text-dim); margin-top:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.shop-dash-section{background:#fff; border:1px solid var(--line-paper); border-radius:16px; padding:20px; margin-bottom:16px}
+.shop-dash-section h2{font-family:var(--font-display),sans-serif; font-weight:700; font-size:16px; margin-bottom:14px;
+  display:flex; align-items:center; gap:8px}
+.shop-dash-loading{font-size:11px; font-weight:500; color:var(--ink-text-dim); text-transform:none}
+.shop-status{font-size:11px; font-weight:700; padding:5px 10px; border-radius:20px; white-space:nowrap; flex-shrink:0}
+.shop-status-pending{background:#FCEED3; color:#A15C00}
+.shop-status-approved{background:#DCF3E4; color:#1E7A3D}
+.shop-status-rejected{background:#FADBD8; color:#943126}
 
 /* ---------- admin portal ---------- */
 .admin-shell{

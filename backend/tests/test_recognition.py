@@ -89,6 +89,40 @@ def test_seller_submission_with_photo_succeeds_without_storage_configured():
     assert r.json()["status"] == "received"
 
 
+def test_sellers_register_fails_gracefully_without_db():
+    r = client.post("/sellers/register", json={
+        "shop_name": "Test Shop", "channel": "shop", "contact": "+250700000001",
+        "location": "Kigali", "pin": "1234",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False  # no DATABASE_URL in tests — degrades gracefully, doesn't crash
+    assert "message" in body
+
+
+def test_sellers_login_rejects_without_db():
+    r = client.post("/sellers/login", json={"contact": "+250700000001", "pin": "1234"})
+    assert r.status_code == 401
+
+
+def test_sellers_me_requires_auth():
+    assert client.get("/sellers/me").status_code == 401
+
+
+def test_sellers_add_product_requires_auth():
+    r = client.post("/sellers/me/products", data={"product": "Test Item", "category": "earbuds"})
+    assert r.status_code == 401
+
+
+def test_register_and_verify_seller_functions_without_db():
+    from app.seller_auth import get_seller_dashboard, register_seller, verify_seller
+
+    ok, _ = register_seller("Test Shop", "shop", "+250700000001", "Kigali", "1234")
+    assert ok is False
+    assert verify_seller("+250700000001", "1234") is None
+    assert get_seller_dashboard("+250700000001") == {"products": [], "submissions": []}
+
+
 def test_notify_me_succeeds_without_db():
     r = client.post("/notify-me", json={"contact": "+250700000000", "category": "earbuds"})
     assert r.status_code == 200

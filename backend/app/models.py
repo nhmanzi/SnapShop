@@ -116,3 +116,54 @@ class AdminNotifyRequest(BaseModel):
     brand: Optional[str] = None
     note: Optional[str] = None
     created_at: Optional[str] = None
+
+
+class SellerRegisterRequest(BaseModel):
+    """A new seller creating their identity for the first time."""
+    shop_name: str
+    channel: str
+    contact: str
+    location: str
+    pin: str
+
+
+class SellerLoginRequest(BaseModel):
+    contact: str
+    pin: str
+
+
+class SellerInfo(BaseModel):
+    """A verified seller's own identity, as shown back to them."""
+    seller_id: str
+    name: str
+    channel: str
+    location: str
+    contact: str
+
+
+class SellerOwnProduct(BaseModel):
+    """One of a seller's own live (already-approved) products."""
+    product: str
+    category: str
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    price_rwf: Optional[int] = None
+    image_url: Optional[str] = None
+
+
+class SellerOwnSubmission(BaseModel):
+    """One of a seller's own submissions, at any status."""
+    id: int
+    product: str
+    category: str
+    price_rwf: Optional[int] = None
+    image_url: Optional[str] = None
+    status: str
+    created_at: Optional[str] = None
+
+
+class SellerDashboard(BaseModel):
+    """Everything a logged-in seller sees about their own shop."""
+    seller: SellerInfo
+    products: list[SellerOwnProduct] = Field(default_factory=list)
+    submissions: list[SellerOwnSubmission] = Field(default_factory=list)
