@@ -47,6 +47,23 @@ function money(n) {
   return n == null ? "—" : n.toLocaleString("en-US");
 }
 
+function SkeletonCards({ count = 3 }) {
+  return (
+    <div className="admin-list">
+      {Array.from({ length: count }).map((_, i) => (
+        <div className="skel-card" key={i}>
+          <div className="skel skel-card-thumb" />
+          <div className="skel-card-lines">
+            <div className="skel skel-line w-60" />
+            <div className="skel skel-line w-40" />
+            <div className="skel skel-line w-80" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -60,6 +77,8 @@ export default function AdminPage() {
   const [sellers, setSellers] = useState([]);
   const [demand, setDemand] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [summaryLoaded, setSummaryLoaded] = useState(false);
+  const [loadedTabs, setLoadedTabs] = useState({});
   const [actionId, setActionId] = useState(null);
 
   useEffect(() => {
@@ -131,6 +150,7 @@ export default function AdminPage() {
   async function loadSummary(candidate) {
     const body = await authedFetch("/admin/summary", candidate);
     if (body) setSummary(body);
+    setSummaryLoaded(true);
   }
 
   async function loadTab(which, candidate) {
@@ -146,6 +166,7 @@ export default function AdminPage() {
         const body = await authedFetch("/admin/notify-requests", candidate);
         if (body) setDemand(body);
       }
+      setLoadedTabs((seen) => ({ ...seen, [which]: true }));
     } catch {
       // best effort — leave the previous view showing rather than clearing it
     } finally {
@@ -238,7 +259,11 @@ export default function AdminPage() {
               onClick={() => setTab(c.id)}
             >
               <div className="admin-stat-icon" style={{ background: c.color }}>{ICONS[c.id]}</div>
-              <div className="admin-stat-value">{summary[c.countKey]}</div>
+              {summaryLoaded ? (
+                <div className="admin-stat-value">{summary[c.countKey]}</div>
+              ) : (
+                <div className="skel skel-stat-value" />
+              )}
               <div className="admin-stat-label">{c.label}</div>
             </button>
           ))}
@@ -246,7 +271,11 @@ export default function AdminPage() {
 
         {(tab === "pending" || tab === "approved" || tab === "rejected") && (
           <>
-            {!loading && submissions.length === 0 && (
+            {loading && !loadedTabs[tab] ? (
+              <SkeletonCards />
+            ) : (
+              <>
+            {submissions.length === 0 && (
               <p className="admin-empty">Nothing here yet.</p>
             )}
             <div className="admin-list">
@@ -288,12 +317,18 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+              </>
+            )}
           </>
         )}
 
         {tab === "catalog" && (
           <>
-            {!loading && sellers.length === 0 && (
+            {loading && !loadedTabs.catalog ? (
+              <SkeletonCards />
+            ) : (
+              <>
+            {sellers.length === 0 && (
               <p className="admin-empty">No sellers in the database yet.</p>
             )}
             <div className="admin-list">
@@ -325,12 +360,18 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+              </>
+            )}
           </>
         )}
 
         {tab === "demand" && (
           <>
-            {!loading && demand.length === 0 && (
+            {loading && !loadedTabs.demand ? (
+              <SkeletonCards />
+            ) : (
+              <>
+            {demand.length === 0 && (
               <p className="admin-empty">No unmatched searches recorded yet.</p>
             )}
             <div className="admin-list">
@@ -345,6 +386,8 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+              </>
+            )}
           </>
         )}
       </div>

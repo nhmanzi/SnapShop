@@ -11,10 +11,12 @@
 html,body{height:100%}
 body{
   font-family:var(--font-body),sans-serif; background:var(--ink); color:var(--text);
-  overflow:hidden; position:fixed; inset:0;
   -webkit-font-smoothing:antialiased;
 }
-#app{position:relative; height:100dvh; width:100vw; overflow:hidden}
+/* Fixed full-bleed, no-scroll: only the camera viewfinder needs this — scoping it
+   here (rather than on body) lets other pages like /admin and /list-your-shop
+   scroll normally when their content is taller than the viewport. */
+#app{position:fixed; inset:0; height:100dvh; width:100vw; overflow:hidden}
 
 /* ---------- viewfinder ---------- */
 .stage{position:absolute; inset:0; background:#0C0D12; overflow:hidden}
@@ -303,6 +305,29 @@ body{
   .admin-list{display:grid; grid-template-columns:repeat(2, 1fr); gap:14px}
   .admin-card-block{grid-column:1 / -1}
 }
+
+/* ---------- skeleton loaders (admin + seller portal) ---------- */
+@keyframes skel-shimmer{
+  0%{background-position:-200px 0}
+  100%{background-position:200px 0}
+}
+.skel{
+  background:linear-gradient(90deg, rgba(0,0,0,.06) 25%, rgba(0,0,0,.12) 37%, rgba(0,0,0,.06) 63%);
+  background-size:400px 100%; animation:skel-shimmer 1.4s ease-in-out infinite; border-radius:8px;
+}
+.admin-shell[data-theme="dark"] .skel{
+  background:linear-gradient(90deg, rgba(255,255,255,.06) 25%, rgba(255,255,255,.14) 37%, rgba(255,255,255,.06) 63%);
+  background-size:400px 100%;
+}
+.skel-stat-value{width:44px; height:26px}
+.skel-line{height:12px; border-radius:6px}
+.skel-line.w-40{width:40%}
+.skel-line.w-60{width:60%}
+.skel-line.w-80{width:80%}
+.skel-card{display:flex; align-items:center; gap:14px; background:var(--adm-card,#fff);
+  border:1px solid var(--adm-border,var(--line-paper)); border-radius:16px; padding:16px 18px}
+.skel-card-thumb{width:56px; height:56px; border-radius:10px; flex-shrink:0}
+.skel-card-lines{flex:1; display:flex; flex-direction:column; gap:8px}
 
 .hidden{display:none !important}
 @media (prefers-reduced-motion:reduce){

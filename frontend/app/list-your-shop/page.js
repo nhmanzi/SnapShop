@@ -31,6 +31,7 @@ export default function ListYourShopPage() {
   const [products, setProducts] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const [loginForm, setLoginForm] = useState({ contact: "", pin: "" });
   const [loginError, setLoginError] = useState("");
@@ -52,7 +53,8 @@ export default function ListYourShopPage() {
     if (saved) {
       const parsed = JSON.parse(saved);
       setSession(parsed);
-      loadDashboard(parsed);
+      setRestoring(true);
+      loadDashboard(parsed).finally(() => setRestoring(false));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -184,6 +186,31 @@ export default function ListYourShopPage() {
     } catch {
       setAddStatus("error");
     }
+  }
+
+  /* ----------------------------- RESTORING ----------------------------- */
+  if (restoring) {
+    return (
+      <div className="shop-dash-page">
+        <div className="shop-dash">
+          <div className="shop-dash-head">
+            <div>
+              <div className="skel skel-line w-60" style={{ height: 24, marginBottom: 8 }} />
+              <div className="skel skel-line w-40" />
+            </div>
+          </div>
+          <div className="shop-dash-section">
+            <div className="skel-card" style={{ border: "none", padding: 0 }}>
+              <div className="skel-card-lines">
+                <div className="skel skel-line w-80" />
+                <div className="skel skel-line w-60" />
+                <div className="skel skel-line w-40" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   /* ------------------------------ CHOOSE ------------------------------ */
