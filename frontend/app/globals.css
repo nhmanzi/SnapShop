@@ -217,6 +217,31 @@ body{
 .shop-error{color:#c0392b; font-size:13px; margin-top:2px}
 .shop-back{display:inline-block; text-align:center; text-decoration:none; width:100%; box-sizing:border-box}
 
+/* ---------- admin portal ---------- */
+.admin-page{min-height:100dvh; width:100%; background:var(--paper); color:var(--ink-text);
+  padding:28px 20px 60px; box-sizing:border-box; max-width:640px; margin:0 auto}
+.admin-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:20px}
+.admin-head h1{font-family:var(--font-display),sans-serif; font-weight:800; font-size:24px; letter-spacing:-.02em}
+.admin-refresh{padding:9px 16px; border-radius:10px; border:none; background:var(--ink); color:var(--paper);
+  font-family:var(--font-body),sans-serif; font-weight:600; font-size:13px; cursor:pointer}
+.admin-refresh:disabled{opacity:.5; cursor:default}
+.admin-empty{padding:40px 0; text-align:center; color:var(--ink-text-dim); font-size:14px}
+.admin-list{display:flex; flex-direction:column; gap:12px}
+.admin-card{display:flex; align-items:center; justify-content:space-between; gap:14px;
+  background:#fff; border:1px solid var(--line-paper); border-radius:16px; padding:16px 18px}
+.admin-card-main{flex:1; min-width:0}
+.admin-shop-name{font-weight:700; font-size:15px}
+.admin-meta{font-size:12px; color:var(--ink-text-dim); margin-top:3px;
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+.admin-product{font-size:13px; color:var(--ink-text); margin-top:6px}
+.admin-category{color:var(--ink-text-dim)}
+.admin-actions{display:flex; flex-direction:column; gap:8px; flex-shrink:0}
+.admin-approve, .admin-reject{padding:8px 16px; border-radius:9px; border:none;
+  font-family:var(--font-body),sans-serif; font-weight:600; font-size:12px; cursor:pointer; white-space:nowrap}
+.admin-approve{background:var(--local); color:#fff}
+.admin-reject{background:var(--paper-2); color:var(--ink-text)}
+.admin-approve:disabled, .admin-reject:disabled{opacity:.5; cursor:default}
+
 .hidden{display:none !important}
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important; transition-duration:.01ms !important}

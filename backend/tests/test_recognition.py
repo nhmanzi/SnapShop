@@ -83,3 +83,38 @@ def test_feedback_succeeds_without_db():
     r = client.post("/feedback", json={"category": "earbuds", "helpful": True})
     assert r.status_code == 200
     assert r.json()["status"] == "received"
+
+
+def test_admin_verify_rejects_when_no_token_configured():
+    # ADMIN_TOKEN isn't set in tests, so the admin API stays locked by default.
+    r = client.post("/admin/verify", headers={"x-admin-token": "anything"})
+    assert r.status_code == 200
+    assert r.json()["ok"] is False
+
+
+def test_admin_submissions_requires_auth():
+    r = client.get("/admin/submissions")
+    assert r.status_code == 401
+
+
+def test_admin_submissions_rejects_wrong_token():
+    r = client.get("/admin/submissions", headers={"x-admin-token": "wrong"})
+    assert r.status_code == 401
+
+
+def test_admin_approve_and_reject_require_auth():
+    assert client.post("/admin/submissions/1/approve").status_code == 401
+    assert client.post("/admin/submissions/1/reject").status_code == 401
+
+
+def test_list_pending_submissions_empty_without_db():
+    from app.admin import list_pending_submissions
+
+    assert list_pending_submissions() == []
+
+
+def test_approve_and_reject_are_noops_without_db():
+    from app.admin import approve_submission, reject_submission
+
+    assert approve_submission(1) is False
+    assert reject_submission(1) is False

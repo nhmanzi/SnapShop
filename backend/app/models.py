@@ -61,3 +61,17 @@ class FeedbackRequest(BaseModel):
     confidence: Optional[float] = None
     helpful: bool
     note: Optional[str] = None
+
+
+class AdminSubmission(BaseModel):
+    """A pending seller submission, as shown to the admin reviewer."""
+    id: int
+    shop_name: str
+    channel: str
+    contact: str
+    location: str
+    product: str
+    category: str
+    price_rwf: Optional[int] = None
+    status: str
+    created_at: Optional[str] = None

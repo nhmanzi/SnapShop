@@ -12,13 +12,14 @@ from __future__ import annotations
 
 import base64
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .admin import approve_submission, check_token, list_pending_submissions, reject_submission
 from .community import save_feedback, save_notify_request, save_seller_submission
 from .matching import match
-from .models import FeedbackRequest, NotifyRequest, RecognizeResponse, SellerSubmission
+from .models import AdminSubmission, FeedbackRequest, NotifyRequest, RecognizeResponse, SellerSubmission
 from .recognition import _mock_enabled, recognize
 from .sellers import get_sellers, sellers_source
 
@@ -88,3 +89,34 @@ def submit_feedback(req: FeedbackRequest) -> dict:
     """Was a recognition + match result actually correct/useful?"""
     saved = save_feedback(req)
     return {"status": "received", "saved": saved}
+
+
+def require_admin(x_admin_token: str = Header(default="")) -> None:
+    if not check_token(x_admin_token):
+        raise HTTPException(status_code=401, detail="Invalid or missing admin token")
+
+
+@app.post("/admin/verify")
+def admin_verify(x_admin_token: str = Header(default="")) -> dict:
+    """Let the admin page check a password without exposing anything if it's wrong."""
+    return {"ok": check_token(x_admin_token)}
+
+
+@app.get("/admin/submissions", response_model=list[AdminSubmission], dependencies=[Depends(require_admin)])
+def admin_list_submissions() -> list[dict]:
+    """Seller listings awaiting review, oldest first."""
+    return list_pending_submissions()
+
+
+@app.post("/admin/submissions/{submission_id}/approve", dependencies=[Depends(require_admin)])
+def admin_approve(submission_id: int) -> dict:
+    """Move a submission into the live seller catalogue."""
+    ok = approve_submission(submission_id)
+    return {"status": "approved" if ok else "failed"}
+
+
+@app.post("/admin/submissions/{submission_id}/reject", dependencies=[Depends(require_admin)])
+def admin_reject(submission_id: int) -> dict:
+    """Discard a submission without adding it to the catalogue."""
+    ok = reject_submission(submission_id)
+    return {"status": "rejected" if ok else "failed"}
