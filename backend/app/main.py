@@ -11,17 +11,34 @@ Run locally:
 from __future__ import annotations
 
 import base64
+from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .admin import approve_submission, check_token, list_pending_submissions, reject_submission
+from .admin import (
+    approve_submission,
+    check_token,
+    list_live_sellers,
+    list_notify_requests,
+    list_submissions,
+    reject_submission,
+)
 from .community import save_feedback, save_notify_request, save_seller_submission
 from .matching import match
-from .models import AdminSubmission, FeedbackRequest, NotifyRequest, RecognizeResponse, SellerSubmission
+from .models import (
+    AdminNotifyRequest,
+    AdminSeller,
+    AdminSubmission,
+    FeedbackRequest,
+    NotifyRequest,
+    RecognizeResponse,
+    SellerSubmission,
+)
 from .recognition import _mock_enabled, recognize
 from .sellers import get_sellers, sellers_source
+from .storage import upload_product_photo
 
 app = FastAPI(title="SnapShop API", version="0.1.0")
 
@@ -71,9 +88,33 @@ async def recognize_upload(file: UploadFile = File(...)) -> RecognizeResponse:
 
 
 @app.post("/sellers/submit")
-def submit_seller(req: SellerSubmission) -> dict:
-    """List a shop — reviewed before it feeds into live matching."""
-    saved = save_seller_submission(req)
+async def submit_seller(
+    shop_name: str = Form(...),
+    channel: str = Form(...),
+    contact: str = Form(...),
+    location: str = Form(...),
+    product: str = Form(...),
+    category: str = Form(...),
+    price_rwf: Optional[int] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+) -> dict:
+    """List a shop — reviewed before it feeds into live matching.
+
+    Multipart rather than JSON so a seller can optionally attach a product
+    photo alongside the listing details. A missing or failed photo upload
+    never blocks the submission itself — the listing is just saved without one.
+    """
+    image_url = None
+    if photo is not None:
+        raw = await photo.read()
+        if raw:
+            image_url = upload_product_photo(raw, photo.content_type or "image/jpeg")
+
+    data = SellerSubmission(
+        shop_name=shop_name, channel=channel, contact=contact, location=location,
+        product=product, category=category, price_rwf=price_rwf, image_url=image_url,
+    )
+    saved = save_seller_submission(data)
     return {"status": "received", "saved": saved}
 
 
@@ -103,9 +144,11 @@ def admin_verify(x_admin_token: str = Header(default="")) -> dict:
 
 
 @app.get("/admin/submissions", response_model=list[AdminSubmission], dependencies=[Depends(require_admin)])
-def admin_list_submissions() -> list[dict]:
-    """Seller listings awaiting review, oldest first."""
-    return list_pending_submissions()
+def admin_list_submissions(status: str = "pending") -> list[dict]:
+    """Seller listings with the given status (pending / approved / rejected), oldest first."""
+    if status not in ("pending", "approved", "rejected"):
+        raise HTTPException(status_code=400, detail="status must be pending, approved, or rejected")
+    return list_submissions(status)
 
 
 @app.post("/admin/submissions/{submission_id}/approve", dependencies=[Depends(require_admin)])
@@ -120,3 +163,15 @@ def admin_reject(submission_id: int) -> dict:
     """Discard a submission without adding it to the catalogue."""
     ok = reject_submission(submission_id)
     return {"status": "rejected" if ok else "failed"}
+
+
+@app.get("/admin/sellers", response_model=list[AdminSeller], dependencies=[Depends(require_admin)])
+def admin_sellers() -> list[dict]:
+    """The live catalogue: real sellers and their products currently in the database."""
+    return list_live_sellers()
+
+
+@app.get("/admin/notify-requests", response_model=list[AdminNotifyRequest], dependencies=[Depends(require_admin)])
+def admin_notify_requests() -> list[dict]:
+    """Unmatched-demand signals: items shoppers looked for but couldn't find, newest first."""
+    return list_notify_requests()

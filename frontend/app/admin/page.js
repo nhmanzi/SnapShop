@@ -5,6 +5,14 @@ import { useEffect, useState } from "react";
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
 const TOKEN_KEY = "snapshop_admin_token";
 
+const TABS = [
+  { id: "pending", label: "Pending" },
+  { id: "approved", label: "Approved" },
+  { id: "rejected", label: "Rejected" },
+  { id: "catalog", label: "Live Catalog" },
+  { id: "demand", label: "Unmatched Demand" },
+];
+
 function money(n) {
   return n == null ? "—" : n.toLocaleString("en-US");
 }
@@ -14,11 +22,14 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  const [tab, setTab] = useState("pending");
   const [submissions, setSubmissions] = useState([]);
+  const [sellers, setSellers] = useState([]);
+  const [demand, setDemand] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState(null);
 
-  // Try a token already saved in this browser tab's session before asking again.
   useEffect(() => {
     const saved = sessionStorage.getItem(TOKEN_KEY);
     if (saved) {
@@ -27,6 +38,11 @@ export default function AdminPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (authed) loadTab(tab, token);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, authed]);
 
   async function verify(candidate) {
     setChecking(true);
@@ -40,7 +56,6 @@ export default function AdminPage() {
       if (body.ok) {
         sessionStorage.setItem(TOKEN_KEY, candidate);
         setAuthed(true);
-        loadSubmissions(candidate);
       } else {
         sessionStorage.removeItem(TOKEN_KEY);
         setAuthError("Wrong password.");
@@ -52,20 +67,33 @@ export default function AdminPage() {
     }
   }
 
-  async function loadSubmissions(candidate) {
+  async function authedFetch(path, candidate) {
+    const res = await fetch(API_BASE + path, {
+      headers: { "x-admin-token": candidate || token },
+    });
+    if (res.status === 401) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      setAuthed(false);
+      return null;
+    }
+    return res.json();
+  }
+
+  async function loadTab(which, candidate) {
     setLoading(true);
     try {
-      const res = await fetch(API_BASE + "/admin/submissions", {
-        headers: { "x-admin-token": candidate || token },
-      });
-      if (res.status === 401) {
-        sessionStorage.removeItem(TOKEN_KEY);
-        setAuthed(false);
-        return;
+      if (which === "pending" || which === "approved" || which === "rejected") {
+        const body = await authedFetch(`/admin/submissions?status=${which}`, candidate);
+        if (body) setSubmissions(body);
+      } else if (which === "catalog") {
+        const body = await authedFetch("/admin/sellers", candidate);
+        if (body) setSellers(body);
+      } else if (which === "demand") {
+        const body = await authedFetch("/admin/notify-requests", candidate);
+        if (body) setDemand(body);
       }
-      setSubmissions(await res.json());
     } catch {
-      // best effort — leave the previous list showing rather than clearing it
+      // best effort — leave the previous view showing rather than clearing it
     } finally {
       setLoading(false);
     }
@@ -96,7 +124,7 @@ export default function AdminPage() {
       <div className="shop-page">
         <div className="shop-card">
           <h1>Admin</h1>
-          <p>Enter the admin password to review pending seller listings.</p>
+          <p>Enter the admin password to open the dashboard.</p>
           <form onSubmit={handleLoginSubmit} className="shop-form">
             <label>
               Password
@@ -121,49 +149,127 @@ export default function AdminPage() {
   return (
     <div className="admin-page">
       <div className="admin-head">
-        <h1>Pending listings</h1>
-        <button className="admin-refresh" onClick={() => loadSubmissions()} disabled={loading}>
+        <h1>Dashboard</h1>
+        <button className="admin-refresh" onClick={() => loadTab(tab)} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </button>
       </div>
 
-      {!loading && submissions.length === 0 && (
-        <p className="admin-empty">Nothing waiting for review.</p>
-      )}
-
-      <div className="admin-list">
-        {submissions.map((s) => (
-          <div className="admin-card" key={s.id}>
-            <div className="admin-card-main">
-              <div className="admin-shop-name">{s.shop_name}</div>
-              <div className="admin-meta">
-                <span className="chan">{s.channel}</span>
-                {s.location} · {s.contact}
-              </div>
-              <div className="admin-product">
-                {s.product} <span className="admin-category">({s.category})</span>
-                {s.price_rwf != null && <> — {money(s.price_rwf)} RWF</>}
-              </div>
-            </div>
-            <div className="admin-actions">
-              <button
-                className="admin-approve"
-                disabled={actionId === s.id}
-                onClick={() => act(s.id, "approve")}
-              >
-                Approve
-              </button>
-              <button
-                className="admin-reject"
-                disabled={actionId === s.id}
-                onClick={() => act(s.id, "reject")}
-              >
-                Reject
-              </button>
-            </div>
-          </div>
+      <div className="admin-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            className={`admin-tab${tab === t.id ? " admin-tab-active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
+
+      {(tab === "pending" || tab === "approved" || tab === "rejected") && (
+        <>
+          {!loading && submissions.length === 0 && (
+            <p className="admin-empty">Nothing here yet.</p>
+          )}
+          <div className="admin-list">
+            {submissions.map((s) => (
+              <div className="admin-card" key={s.id}>
+                {s.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.image_url} alt={s.product} className="admin-thumb" />
+                )}
+                <div className="admin-card-main">
+                  <div className="admin-shop-name">{s.shop_name}</div>
+                  <div className="admin-meta">
+                    <span className="chan">{s.channel}</span>
+                    {s.location} · {s.contact}
+                  </div>
+                  <div className="admin-product">
+                    {s.product} <span className="admin-category">({s.category})</span>
+                    {s.price_rwf != null && <> — {money(s.price_rwf)} RWF</>}
+                  </div>
+                </div>
+                {tab === "pending" && (
+                  <div className="admin-actions">
+                    <button
+                      className="admin-approve"
+                      disabled={actionId === s.id}
+                      onClick={() => act(s.id, "approve")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="admin-reject"
+                      disabled={actionId === s.id}
+                      onClick={() => act(s.id, "reject")}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "catalog" && (
+        <>
+          {!loading && sellers.length === 0 && (
+            <p className="admin-empty">No sellers in the database yet.</p>
+          )}
+          <div className="admin-list">
+            {sellers.map((s) => (
+              <div className="admin-card admin-card-block" key={s.seller_id}>
+                <div className="admin-shop-name">{s.name}</div>
+                <div className="admin-meta">
+                  <span className="chan">{s.channel}</span>
+                  {s.location} · {s.contact}
+                </div>
+                <div className="admin-catalog-products">
+                  {s.products.map((p, i) => (
+                    <div className="admin-catalog-product" key={i}>
+                      {p.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.image_url} alt={p.product} className="admin-thumb" />
+                      )}
+                      <div>
+                        <div className="admin-product">
+                          {p.product} <span className="admin-category">({p.category})</span>
+                        </div>
+                        {p.price_rwf != null && (
+                          <div className="admin-meta">{money(p.price_rwf)} RWF</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "demand" && (
+        <>
+          {!loading && demand.length === 0 && (
+            <p className="admin-empty">No unmatched searches recorded yet.</p>
+          )}
+          <div className="admin-list">
+            {demand.map((d) => (
+              <div className="admin-card admin-card-block" key={d.id}>
+                <div className="admin-shop-name">{d.category || "Unknown category"}</div>
+                <div className="admin-meta">
+                  {d.brand && <>Brand: {d.brand} · </>}
+                  Contact: {d.contact}
+                </div>
+                {d.note && <div className="admin-product">{d.note}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -5,29 +5,51 @@ import { useState } from "react";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
 
+// Downscale to a manageable size before upload — same idea as the scan
+// photo, just for a chosen file instead of a live video frame.
+async function downscaleImage(file, longEdge = 1024, quality = 0.85) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, longEdge / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+}
+
 export default function ListYourShopPage() {
   const [form, setForm] = useState({
     shop_name: "", channel: "shop", contact: "", location: "",
     product: "", category: "", price_rwf: "",
   });
+  const [photo, setPhoto] = useState(null);       // downscaled Blob, ready to upload
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | sending | sent | error
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const blob = await downscaleImage(file);
+    setPhoto(blob);
+    setPhotoPreview(URL.createObjectURL(blob));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setStatus("sending");
     try {
-      const res = await fetch(API_BASE + "/sellers/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          price_rwf: form.price_rwf ? Number(form.price_rwf) : null,
-        }),
+      const fd = new FormData();
+      Object.entries(form).forEach(([key, value]) => {
+        if (key === "price_rwf" && !value) return; // leave optional price out rather than send ""
+        fd.append(key, value);
       });
+      if (photo) fd.append("photo", photo, "product.jpg");
+
+      const res = await fetch(API_BASE + "/sellers/submit", { method: "POST", body: fd });
       if (!res.ok) throw new Error("HTTP " + res.status);
       setStatus("sent");
     } catch {
@@ -40,7 +62,7 @@ export default function ListYourShopPage() {
       <div className="shop-page">
         <div className="shop-card">
           <h1>Thanks!</h1>
-          <p>We&apos;ve got your listing — it&apos;ll be reviewed and added to SnapShop&apos;s local seller index.</p>
+          <p>We&apos;ve got your listing — it&apos;ll be reviewed and added to the local seller index.</p>
           <Link href="/" className="upload-btn shop-back">
             Back to SnapShop
           </Link>
@@ -108,6 +130,14 @@ export default function ListYourShopPage() {
               onChange={(e) => update("price_rwf", e.target.value)}
             />
           </label>
+          <label>
+            Product photo (optional)
+            <input type="file" accept="image/*" onChange={handlePhotoChange} />
+          </label>
+          {photoPreview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoPreview} alt="Selected product" className="shop-photo-preview" />
+          )}
           <button type="submit" className="upload-btn" disabled={status === "sending"}>
             {status === "sending" ? "Submitting…" : "Submit listing"}
           </button>

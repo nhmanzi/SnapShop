@@ -44,6 +44,7 @@ class SellerSubmission(BaseModel):
     product: str
     category: str
     price_rwf: Optional[int] = None
+    image_url: Optional[str] = None
 
 
 class NotifyRequest(BaseModel):
@@ -64,7 +65,7 @@ class FeedbackRequest(BaseModel):
 
 
 class AdminSubmission(BaseModel):
-    """A pending seller submission, as shown to the admin reviewer."""
+    """A seller submission, as shown to the admin reviewer — any status."""
     id: int
     shop_name: str
     channel: str
@@ -73,5 +74,36 @@ class AdminSubmission(BaseModel):
     product: str
     category: str
     price_rwf: Optional[int] = None
+    image_url: Optional[str] = None
     status: str
+    created_at: Optional[str] = None
+
+
+class AdminProduct(BaseModel):
+    """A product in the live catalogue, as shown in the admin dashboard."""
+    product: str
+    category: str
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    price_rwf: Optional[int] = None
+    image_url: Optional[str] = None
+
+
+class AdminSeller(BaseModel):
+    """A live seller and their products, as shown in the admin dashboard."""
+    seller_id: str
+    name: str
+    channel: str
+    location: str
+    contact: str
+    products: list[AdminProduct] = Field(default_factory=list)
+
+
+class AdminNotifyRequest(BaseModel):
+    """A notify-me request — a shopper's unmatched demand signal."""
+    id: int
+    contact: str
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    note: Optional[str] = None
     created_at: Optional[str] = None

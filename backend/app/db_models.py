@@ -34,6 +34,7 @@ class ProductRow(Base):
     model = Column(String, nullable=True)
     keywords = Column(ARRAY(String), default=list)
     price_rwf = Column(Integer, nullable=True)
+    image_url = Column(String, nullable=True)
 
     seller = relationship("SellerRow", back_populates="products")
 
@@ -50,6 +51,7 @@ class SellerSubmissionRow(Base):
     product = Column(String, nullable=False)
     category = Column(String, nullable=False)
     price_rwf = Column(Integer, nullable=True)
+    image_url = Column(String, nullable=True)
     status = Column(String, nullable=False, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
