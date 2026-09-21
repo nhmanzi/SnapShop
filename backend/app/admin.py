@@ -43,6 +43,8 @@ def _submission_to_dict(r) -> dict:
         "category": r.category,
         "price_rwf": r.price_rwf,
         "image_url": r.image_url,
+        "recognized_category": r.recognized_category,
+        "recognized_brand": r.recognized_brand,
         "status": r.status,
         "created_at": r.created_at.isoformat() if r.created_at else None,
     }
@@ -75,13 +77,29 @@ def _keywords_for(product: str, category: str) -> list[str]:
     return sorted({w for w in words if len(w) > 1})
 
 
+def _resolved_product_fields(
+    product: str, category: str,
+    recognized_category: str | None, recognized_brand: str | None,
+    recognized_model: str | None, recognized_keywords: list[str] | None,
+) -> tuple[str, str | None, str | None, list[str]]:
+    """What actually goes live for an approved product: prefer whatever was
+    recognized from the seller's own photo (category, brand, model, keywords)
+    over the seller's typed text, since that's what a buyer's scan is
+    compared against and keeps both sides of a match in the same vocabulary.
+    Falls back to the typed text when no photo was recognized (no photo,
+    mock mode, or a failed recognition call at submission time)."""
+    resolved_category = recognized_category or category
+    keywords = sorted(set(_keywords_for(product, category)) | set(recognized_keywords or []))
+    return resolved_category, recognized_brand, recognized_model, keywords
+
+
 def approve_submission(submission_id: int) -> bool:
     """Move a pending submission into the live catalogue.
 
     Reuses an existing seller (matched by contact) if the same seller has
-    submitted before, otherwise creates a new one. Keywords for the new
-    product are derived automatically from its name and category, since a
-    seller filling in the self-service form doesn't curate them by hand.
+    submitted before, otherwise creates a new one. The product's category,
+    brand, model, and keywords are resolved via _resolved_product_fields,
+    which prefers what recognition saw in the seller's own photo.
     """
     if not is_db_configured():
         return False
@@ -111,13 +129,18 @@ def approve_submission(submission_id: int) -> bool:
                 session.add(seller)
                 session.flush()  # assign seller_id before the product references it
 
+            category, brand, model, keywords = _resolved_product_fields(
+                sub.product, sub.category,
+                sub.recognized_category, sub.recognized_brand,
+                sub.recognized_model, sub.recognized_keywords,
+            )
             session.add(ProductRow(
                 seller_id=seller.seller_id,
                 product=sub.product,
-                category=sub.category,
-                brand=None,
-                model=None,
-                keywords=_keywords_for(sub.product, sub.category),
+                category=category,
+                brand=brand,
+                model=model,
+                keywords=keywords,
                 price_rwf=sub.price_rwf,
                 image_url=sub.image_url,
             ))

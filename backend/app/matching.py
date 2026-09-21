@@ -16,7 +16,10 @@ from .models import RecognizedItem, SellerMatch
 from .sellers import get_sellers
 
 
-def _tokens(item: RecognizedItem) -> set[str]:
+def tokens_from_item(item: RecognizedItem) -> set[str]:
+    """Lowercased, deduplicated tokens describing a recognized item — shared
+    with the seller-submission flow so a product's keywords are derived the
+    same way a buyer's scan is, instead of two different vocabularies."""
     toks = {item.category.lower()}
     for a in item.attributes:
         toks.update(a.lower().split())
@@ -40,7 +43,7 @@ def _score(item: RecognizedItem, product: dict) -> tuple[float, str]:
         score += 0.30
         reasons.append("brand")
 
-    item_toks = _tokens(item)
+    item_toks = tokens_from_item(item)
     prod_toks = {k.lower() for k in product.get("keywords", [])}
     if prod_toks:
         overlap = len(item_toks & prod_toks) / len(prod_toks)

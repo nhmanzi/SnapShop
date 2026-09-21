@@ -54,6 +54,14 @@ class SellerSubmissionRow(Base):
     category = Column(String, nullable=False)
     price_rwf = Column(Integer, nullable=True)
     image_url = Column(String, nullable=True)
+    # Populated by running the submitted photo through the same recognition
+    # step a buyer's scan uses, so approval can match on what the photo
+    # actually shows instead of only the seller's typed text. Null when no
+    # photo was attached or recognition wasn't available at submission time.
+    recognized_category = Column(String, nullable=True)
+    recognized_brand = Column(String, nullable=True)
+    recognized_model = Column(String, nullable=True)
+    recognized_keywords = Column(ARRAY(String), nullable=True)
     status = Column(String, nullable=False, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

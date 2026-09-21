@@ -201,3 +201,97 @@ def test_list_live_sellers_and_notify_requests_empty_without_db():
 
     assert list_live_sellers() == []
     assert list_notify_requests() == []
+
+
+def test_recognize_photo_discards_mock_results():
+    # MOCK_MODE is forced for this whole test module, so a "real" recognition
+    # attempt on a seller photo must not attach the canned mock item as if
+    # it were a genuine description of the photo.
+    from app.main import _recognize_photo
+
+    assert _recognize_photo(_TINY_PNG, "image/png") == {}
+
+
+def test_recognize_photo_attaches_data_when_not_mock():
+    from unittest.mock import patch
+    from app.main import _recognize_photo
+    from app.models import RecognizedItem
+
+    fake_item = RecognizedItem(
+        category="marker", brand="Staedtler", model=None,
+        attributes=["whiteboard", "black tip"], visible_text=None, confidence=0.9,
+    )
+    with patch("app.main.recognize", return_value=(fake_item, False)):
+        result = _recognize_photo(_TINY_PNG, "image/png")
+
+    assert result["recognized_category"] == "marker"
+    assert result["recognized_brand"] == "Staedtler"
+    assert "whiteboard" in result["recognized_keywords"]
+
+
+def test_recognize_photo_returns_empty_on_recognition_failure():
+    from unittest.mock import patch
+    from app.main import _recognize_photo
+
+    with patch("app.main.recognize", side_effect=RuntimeError("API down")):
+        assert _recognize_photo(_TINY_PNG, "image/png") == {}
+
+
+def test_submit_seller_with_photo_uses_recognized_data_over_typed_text():
+    from unittest.mock import patch
+    from app.models import RecognizedItem
+
+    fake_item = RecognizedItem(
+        category="marker", brand="Staedtler", model=None,
+        attributes=["whiteboard"], visible_text=None, confidence=0.9,
+    )
+    captured = {}
+
+    def _fake_save(data):
+        captured["submission"] = data
+        return True
+
+    with patch("app.main.recognize", return_value=(fake_item, False)), \
+         patch("app.main.upload_product_photo", return_value="https://example.com/p.jpg"), \
+         patch("app.main.save_seller_submission", side_effect=_fake_save):
+        r = client.post(
+            "/sellers/submit",
+            data={
+                "shop_name": "Office Supplies", "channel": "shop", "contact": "+250700000000",
+                "location": "Kigali", "product": "Board marker", "category": "marker",
+            },
+            files={"photo": ("photo.png", _TINY_PNG, "image/png")},
+        )
+
+    assert r.status_code == 200
+    sub = captured["submission"]
+    assert sub.recognized_category == "marker"
+    assert sub.recognized_brand == "Staedtler"
+
+
+def test_resolved_product_fields_prefers_recognized_data():
+    from app.admin import _resolved_product_fields
+
+    category, brand, model, keywords = _resolved_product_fields(
+        product="Board marker", category="marker pen",
+        recognized_category="whiteboard marker", recognized_brand="Staedtler",
+        recognized_model=None, recognized_keywords=["dry", "erase"],
+    )
+    assert category == "whiteboard marker"
+    assert brand == "Staedtler"
+    assert "dry" in keywords and "erase" in keywords
+    assert "marker" in keywords  # still includes the seller's own typed text
+
+
+def test_resolved_product_fields_falls_back_without_recognition():
+    from app.admin import _resolved_product_fields
+
+    category, brand, model, keywords = _resolved_product_fields(
+        product="Board marker", category="marker",
+        recognized_category=None, recognized_brand=None,
+        recognized_model=None, recognized_keywords=None,
+    )
+    assert category == "marker"
+    assert brand is None
+    assert model is None
+    assert keywords == sorted({"board", "marker"})

@@ -45,6 +45,11 @@ class SellerSubmission(BaseModel):
     category: str
     price_rwf: Optional[int] = None
     image_url: Optional[str] = None
+    # From running the submitted photo through recognition, if one was attached.
+    recognized_category: Optional[str] = None
+    recognized_brand: Optional[str] = None
+    recognized_model: Optional[str] = None
+    recognized_keywords: list[str] = Field(default_factory=list)
 
 
 class NotifyRequest(BaseModel):
@@ -75,6 +80,8 @@ class AdminSubmission(BaseModel):
     category: str
     price_rwf: Optional[int] = None
     image_url: Optional[str] = None
+    recognized_category: Optional[str] = None
+    recognized_brand: Optional[str] = None
     status: str
     created_at: Optional[str] = None
 

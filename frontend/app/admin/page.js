@@ -295,6 +295,12 @@ export default function AdminPage() {
                       {s.product} <span className="admin-category">({s.category})</span>
                       {s.price_rwf != null && <> — {money(s.price_rwf)} RWF</>}
                     </div>
+                    {s.recognized_category && (
+                      <div className="admin-meta">
+                        Photo recognized as: {s.recognized_category}
+                        {s.recognized_brand && <> · {s.recognized_brand}</>}
+                      </div>
+                    )}
                   </div>
                   {tab === "pending" && (
                     <div className="admin-actions">

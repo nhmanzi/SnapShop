@@ -11,6 +11,7 @@ Run locally:
 from __future__ import annotations
 
 import base64
+import logging
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -27,7 +28,7 @@ from .admin import (
     reject_submission,
 )
 from .community import save_feedback, save_notify_request, save_seller_submission
-from .matching import match
+from .matching import match, tokens_from_item
 from .models import (
     AdminNotifyRequest,
     AdminSeller,
@@ -45,6 +46,8 @@ from .recognition import _mock_enabled, recognize
 from .seller_auth import get_seller_dashboard, register_seller, verify_seller
 from .sellers import get_sellers, sellers_source
 from .storage import upload_product_photo
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SnapShop API", version="0.1.0")
 
@@ -93,6 +96,28 @@ async def recognize_upload(file: UploadFile = File(...)) -> RecognizeResponse:
     return RecognizeResponse(item=item, sellers=sellers, mock=used_mock)
 
 
+def _recognize_photo(raw: bytes, content_type: str) -> dict:
+    """Best-effort recognition of a seller's product photo, so a listing can
+    later be matched on what the photo actually shows rather than only the
+    seller's typed text. Mock-mode results are discarded (they're a fixed
+    canned item, not a real description) and any failure just means no
+    recognized data gets attached — it never blocks the submission."""
+    try:
+        b64 = base64.standard_b64encode(raw).decode("utf-8")
+        item, used_mock = recognize(b64, content_type)
+        if used_mock:
+            return {}
+        return {
+            "recognized_category": item.category,
+            "recognized_brand": item.brand,
+            "recognized_model": item.model,
+            "recognized_keywords": sorted(tokens_from_item(item)),
+        }
+    except Exception:
+        logger.warning("Could not recognize seller product photo", exc_info=True)
+        return {}
+
+
 @app.post("/sellers/submit")
 async def submit_seller(
     shop_name: str = Form(...),
@@ -111,14 +136,18 @@ async def submit_seller(
     never blocks the submission itself — the listing is just saved without one.
     """
     image_url = None
+    recognized: dict = {}
     if photo is not None:
         raw = await photo.read()
         if raw:
-            image_url = upload_product_photo(raw, photo.content_type or "image/jpeg")
+            content_type = photo.content_type or "image/jpeg"
+            image_url = upload_product_photo(raw, content_type)
+            recognized = _recognize_photo(raw, content_type)
 
     data = SellerSubmission(
         shop_name=shop_name, channel=channel, contact=contact, location=location,
         product=product, category=category, price_rwf=price_rwf, image_url=image_url,
+        **recognized,
     )
     saved = save_seller_submission(data)
     return {"status": "received", "saved": saved}
@@ -168,15 +197,19 @@ async def sellers_add_product(
     the whole point of logging in is to never retype them.
     """
     image_url = None
+    recognized: dict = {}
     if photo is not None:
         raw = await photo.read()
         if raw:
-            image_url = upload_product_photo(raw, photo.content_type or "image/jpeg")
+            content_type = photo.content_type or "image/jpeg"
+            image_url = upload_product_photo(raw, content_type)
+            recognized = _recognize_photo(raw, content_type)
 
     data = SellerSubmission(
         shop_name=seller["name"], channel=seller["channel"], contact=seller["contact"],
         location=seller["location"], product=product, category=category,
         price_rwf=price_rwf, image_url=image_url,
+        **recognized,
     )
     saved = save_seller_submission(data)
     return {"status": "received", "saved": saved}
