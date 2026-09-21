@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import secrets
 import uuid
 
 from .sellers import is_db_configured
@@ -29,7 +30,9 @@ def admin_enabled() -> bool:
 
 
 def check_token(token: str) -> bool:
-    return admin_enabled() and token == ADMIN_TOKEN
+    # Constant-time compare — a naive == leaks how many leading characters
+    # matched through response timing.
+    return admin_enabled() and secrets.compare_digest(token, ADMIN_TOKEN)
 
 
 def _submission_to_dict(r) -> dict:

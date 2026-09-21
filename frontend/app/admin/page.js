@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { exportTableToPdf } from "../exportPdf";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
@@ -91,6 +91,7 @@ export default function AdminPage() {
   const [actionId, setActionId] = useState(null);
   const [search, setSearch] = useState("");
   const [viewingSeller, setViewingSeller] = useState(null);
+  const activeTabRef = useRef(tab);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem(THEME_KEY);
@@ -104,6 +105,7 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    activeTabRef.current = tab;
     if (authed) {
       loadSummary(token);
       loadTab(tab, token);
@@ -170,19 +172,22 @@ export default function AdminPage() {
     try {
       if (which === "pending" || which === "approved" || which === "rejected") {
         const body = await authedFetch(`/admin/submissions?status=${which}`, candidate);
-        if (body) setSubmissions(body);
+        // A slower request for a tab the user has since clicked away from
+        // can resolve after a faster one for the tab now on screen — only
+        // commit this response if its tab is still the one being viewed.
+        if (body && activeTabRef.current === which) setSubmissions(body);
       } else if (which === "catalog") {
         const body = await authedFetch("/admin/sellers", candidate);
-        if (body) setSellers(body);
+        if (body && activeTabRef.current === which) setSellers(body);
       } else if (which === "demand") {
         const body = await authedFetch("/admin/notify-requests", candidate);
-        if (body) setDemand(body);
+        if (body && activeTabRef.current === which) setDemand(body);
       }
       setLoadedTabs((seen) => ({ ...seen, [which]: true }));
     } catch {
       // best effort — leave the previous view showing rather than clearing it
     } finally {
-      setLoading(false);
+      if (activeTabRef.current === which) setLoading(false);
     }
   }
 
