@@ -134,7 +134,7 @@ async def submit_seller(
     location: str = Form(...),
     product: str = Form(...),
     category: str = Form(...),
-    price_rwf: Optional[int] = Form(None),
+    price_rwf: Optional[int] = Form(None, ge=0),
     photo: Optional[UploadFile] = File(None),
 ) -> dict:
     """List a shop — reviewed before it feeds into live matching.
@@ -196,7 +196,7 @@ async def sellers_add_product(
     seller: dict = Depends(require_seller),
     product: str = Form(...),
     category: str = Form(...),
-    price_rwf: Optional[int] = Form(None),
+    price_rwf: Optional[int] = Form(None, ge=0),
     photo: Optional[UploadFile] = File(None),
 ) -> dict:
     """Add another product under the logged-in seller's own identity.
@@ -229,7 +229,7 @@ async def sellers_update_product(
     seller: dict = Depends(require_seller),
     product: str = Form(...),
     category: str = Form(...),
-    price_rwf: Optional[int] = Form(None),
+    price_rwf: Optional[int] = Form(None, ge=0),
     photo: Optional[UploadFile] = File(None),
 ) -> dict:
     """Edit one of this seller's own live products. A new photo is re-run
@@ -271,7 +271,7 @@ async def sellers_update_submission(
     seller: dict = Depends(require_seller),
     product: str = Form(...),
     category: str = Form(...),
-    price_rwf: Optional[int] = Form(None),
+    price_rwf: Optional[int] = Form(None, ge=0),
     photo: Optional[UploadFile] = File(None),
 ) -> dict:
     """Edit one of this seller's own pending or rejected submissions. A

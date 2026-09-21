@@ -74,6 +74,15 @@ def test_seller_submission_succeeds_without_db():
     assert body["saved"] is False  # no DATABASE_URL in tests — degrades gracefully
 
 
+def test_seller_submission_rejects_negative_price():
+    r = client.post("/sellers/submit", data={
+        "shop_name": "Test Shop", "channel": "shop", "contact": "+250700000000",
+        "location": "Kigali", "product": "Test Earbuds", "category": "earbuds",
+        "price_rwf": "-500",
+    })
+    assert r.status_code == 422
+
+
 def test_seller_submission_with_photo_succeeds_without_storage_configured():
     r = client.post(
         "/sellers/submit",
@@ -91,13 +100,21 @@ def test_seller_submission_with_photo_succeeds_without_storage_configured():
 
 def test_sellers_register_fails_gracefully_without_db():
     r = client.post("/sellers/register", json={
-        "shop_name": "Test Shop", "channel": "shop", "contact": "+250700000001",
+        "shop_name": "Test Shop", "channel": "shop", "contact": "0700000001",
         "location": "Kigali", "pin": "1234",
     })
     assert r.status_code == 200
     body = r.json()
     assert body["ok"] is False  # no DATABASE_URL in tests — degrades gracefully, doesn't crash
     assert "message" in body
+
+
+def test_sellers_register_rejects_non_phone_contact():
+    r = client.post("/sellers/register", json={
+        "shop_name": "Test Shop", "channel": "shop", "contact": "wa.me/250700000001",
+        "location": "Kigali", "pin": "1234",
+    })
+    assert r.status_code == 422
 
 
 def test_sellers_login_rejects_without_db():

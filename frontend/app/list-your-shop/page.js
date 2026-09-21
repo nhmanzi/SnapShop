@@ -24,6 +24,14 @@ function money(n) {
 
 const STATUS_LABEL = { pending: "Pending review", approved: "Live", rejected: "Not approved" };
 
+// Contact is phone-only going forward (fewer formats to confuse buyers with) —
+// exactly 10 digits, no spaces or country code, matching the local convention
+// already used across seed/live seller data (e.g. 0786369485).
+const PHONE_RE = /^\d{10}$/;
+function onlyDigits(value) {
+  return value.replace(/\D/g, "").slice(0, 10);
+}
+
 function EmptyProductsIllustration() {
   return (
     <svg width="140" height="140" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -75,6 +83,7 @@ export default function ListYourShopPage() {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [formStatus, setFormStatus] = useState("idle"); // idle | sending | error
+  const [formError, setFormError] = useState("");
   const [deleteBusyKey, setDeleteBusyKey] = useState(null);
 
   useEffect(() => {
@@ -141,6 +150,10 @@ export default function ListYourShopPage() {
   async function handleRegister(e) {
     e.preventDefault();
     setRegError("");
+    if (!PHONE_RE.test(regForm.contact)) {
+      setRegError("Enter a valid 10-digit phone number.");
+      return;
+    }
     if (regForm.pin.length < 4) {
       setRegError("PIN must be at least 4 digits.");
       return;
@@ -196,6 +209,7 @@ export default function ListYourShopPage() {
     setPhoto(null);
     setPhotoPreview(null);
     setFormStatus("idle");
+    setFormError("");
     setModalOpen(true);
   }
 
@@ -208,6 +222,7 @@ export default function ListYourShopPage() {
     setPhoto(null);
     setPhotoPreview(row.image_url || null);
     setFormStatus("idle");
+    setFormError("");
     setModalOpen(true);
   }
 
@@ -218,6 +233,13 @@ export default function ListYourShopPage() {
 
   async function handleSubmitForm(e) {
     e.preventDefault();
+    setFormError("");
+    const price = productForm.price_rwf.trim();
+    if (price && !/^\d+$/.test(price)) {
+      setFormStatus("error");
+      setFormError("Price must be a whole number, e.g. 5000.");
+      return;
+    }
     setFormStatus("sending");
     try {
       const fd = new FormData();
@@ -332,9 +354,10 @@ export default function ListYourShopPage() {
           <p>Use the contact and PIN you registered with.</p>
           <form onSubmit={handleLogin} className="shop-form">
             <label>
-              Contact (phone, wa.me link, or Instagram handle)
+              Phone number
               <input
                 required
+                type="tel"
                 value={loginForm.contact}
                 onChange={(e) => setLoginForm((f) => ({ ...f, contact: e.target.value }))}
               />
@@ -382,8 +405,16 @@ export default function ListYourShopPage() {
               </select>
             </label>
             <label>
-              Contact (phone, wa.me link, or Instagram handle)
-              <input required value={regForm.contact} onChange={(e) => setRegForm((f) => ({ ...f, contact: e.target.value }))} />
+              Phone number (10 digits)
+              <input
+                required
+                type="tel"
+                inputMode="numeric"
+                placeholder="e.g. 0788123456"
+                maxLength={10}
+                value={regForm.contact}
+                onChange={(e) => setRegForm((f) => ({ ...f, contact: onlyDigits(e.target.value) }))}
+              />
             </label>
             <label>
               Location
@@ -598,6 +629,8 @@ export default function ListYourShopPage() {
                 <input
                   type="number"
                   min="0"
+                  step="1"
+                  inputMode="numeric"
                   value={productForm.price_rwf}
                   onChange={(e) => setProductForm((f) => ({ ...f, price_rwf: e.target.value }))}
                 />
@@ -613,7 +646,7 @@ export default function ListYourShopPage() {
               <button type="submit" className="upload-btn" disabled={formStatus === "sending"}>
                 {formStatus === "sending" ? "Saving…" : editingRow ? "Save changes" : "Add product"}
               </button>
-              {formStatus === "error" && <p className="shop-error">Something went wrong — try again.</p>}
+              {formStatus === "error" && <p className="shop-error">{formError || "Something went wrong — try again."}</p>}
               <button type="button" className="shop-link-btn" onClick={closeModal}>Cancel</button>
             </form>
           </div>

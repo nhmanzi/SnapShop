@@ -1,8 +1,11 @@
 """Data models shared across the SnapShop backend."""
 from __future__ import annotations
 
+import re
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+PHONE_RE = re.compile(r"^\d{10}$")
 
 
 class RecognizedItem(BaseModel):
@@ -132,6 +135,17 @@ class SellerRegisterRequest(BaseModel):
     contact: str
     location: str
     pin: str
+
+    @field_validator("contact")
+    @classmethod
+    def contact_is_phone(cls, v: str) -> str:
+        # Contact is phone-only going forward, to cut down on the confusion
+        # of mixed formats (wa.me links, Instagram handles) a buyer might see.
+        # Existing sellers registered under the old format are unaffected —
+        # this only gates *new* registrations.
+        if not PHONE_RE.match(v):
+            raise ValueError("Contact must be a 10-digit phone number")
+        return v
 
 
 class SellerLoginRequest(BaseModel):
