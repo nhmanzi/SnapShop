@@ -107,7 +107,7 @@ def get_seller_dashboard(contact: str) -> dict:
             seller = session.query(SellerRow).filter(SellerRow.contact == contact).one_or_none()
             products = [] if seller is None else [
                 {
-                    "product": p.product, "category": p.category, "brand": p.brand,
+                    "id": p.id, "product": p.product, "category": p.category, "brand": p.brand,
                     "model": p.model, "price_rwf": p.price_rwf, "image_url": p.image_url,
                 }
                 for p in seller.products
@@ -135,3 +135,148 @@ def get_seller_dashboard(contact: str) -> dict:
     except Exception:
         logger.warning("Could not load seller dashboard", exc_info=True)
         return empty
+
+
+def update_own_product(
+    contact: str, product_id: int, *,
+    product: str, category: str, price_rwf: Optional[int],
+    photo_attached: bool = False, image_url: Optional[str] = None,
+    recognized_category: Optional[str] = None, recognized_brand: Optional[str] = None,
+    recognized_model: Optional[str] = None, recognized_keywords: Optional[list] = None,
+) -> bool:
+    """Edit one of this seller's own live products. Category/brand/model/
+    keywords only change together, and only when a new photo was attached —
+    resolved the same way approval resolves a new submission — so a bare
+    name/price edit can never leave a product's category out of step with
+    its (unrelated, still-photo-derived) keywords. image_url is only
+    overwritten when the new upload actually succeeded (photo_attached can be
+    true with image_url still None if storage isn't configured or the
+    upload failed) — recognition runs off the raw photo either way, but a
+    failed upload must never blank out the product's existing photo."""
+    if not is_db_configured():
+        return False
+    try:
+        from .admin import _resolved_product_fields
+        from .db import ensure_tables, get_session
+        from .db_models import ProductRow, SellerRow
+
+        ensure_tables(SellerRow, ProductRow)
+        with get_session() as session:
+            seller = session.query(SellerRow).filter(SellerRow.contact == contact).one_or_none()
+            if seller is None:
+                return False
+            row = session.query(ProductRow).filter(
+                ProductRow.id == product_id, ProductRow.seller_id == seller.seller_id,
+            ).one_or_none()
+            if row is None:
+                return False
+
+            row.product = product
+            row.price_rwf = price_rwf
+            if photo_attached:
+                resolved_category, brand, model, keywords = _resolved_product_fields(
+                    product, category, recognized_category, recognized_brand,
+                    recognized_model, recognized_keywords,
+                )
+                if image_url is not None:
+                    row.image_url = image_url
+                row.category = resolved_category
+                row.brand = brand
+                row.model = model
+                row.keywords = keywords
+            session.commit()
+        return True
+    except Exception:
+        logger.warning("Could not update product %s", product_id, exc_info=True)
+        return False
+
+
+def delete_own_product(contact: str, product_id: int) -> bool:
+    """Remove one of this seller's own live products. No admin review needed
+    to take a listing down — only to add or change what it claims."""
+    if not is_db_configured():
+        return False
+    try:
+        from .db import ensure_tables, get_session
+        from .db_models import ProductRow, SellerRow
+
+        ensure_tables(SellerRow, ProductRow)
+        with get_session() as session:
+            seller = session.query(SellerRow).filter(SellerRow.contact == contact).one_or_none()
+            if seller is None:
+                return False
+            row = session.query(ProductRow).filter(
+                ProductRow.id == product_id, ProductRow.seller_id == seller.seller_id,
+            ).one_or_none()
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+        return True
+    except Exception:
+        logger.warning("Could not delete product %s", product_id, exc_info=True)
+        return False
+
+
+def update_own_submission(
+    contact: str, submission_id: int, *,
+    product: str, category: str, price_rwf: Optional[int],
+    photo_attached: bool = False, image_url: Optional[str] = None,
+    recognized_category: Optional[str] = None, recognized_brand: Optional[str] = None,
+    recognized_model: Optional[str] = None, recognized_keywords: Optional[list] = None,
+) -> bool:
+    """Edit one of this seller's own pending/rejected submissions. A rejected
+    one moves back to pending for re-review; a pending one just stays pending."""
+    if not is_db_configured():
+        return False
+    try:
+        from .db import ensure_tables, get_session
+        from .db_models import SellerSubmissionRow
+
+        ensure_tables(SellerSubmissionRow)
+        with get_session() as session:
+            row = session.query(SellerSubmissionRow).filter(
+                SellerSubmissionRow.id == submission_id, SellerSubmissionRow.contact == contact,
+            ).one_or_none()
+            if row is None or row.status not in ("pending", "rejected"):
+                return False
+
+            row.product = product
+            row.category = category
+            row.price_rwf = price_rwf
+            if photo_attached:
+                if image_url is not None:
+                    row.image_url = image_url
+                row.recognized_category = recognized_category
+                row.recognized_brand = recognized_brand
+                row.recognized_model = recognized_model
+                row.recognized_keywords = recognized_keywords
+            row.status = "pending"
+            session.commit()
+        return True
+    except Exception:
+        logger.warning("Could not update submission %s", submission_id, exc_info=True)
+        return False
+
+
+def delete_own_submission(contact: str, submission_id: int) -> bool:
+    """Remove one of this seller's own pending/rejected submissions."""
+    if not is_db_configured():
+        return False
+    try:
+        from .db import ensure_tables, get_session
+        from .db_models import SellerSubmissionRow
+
+        ensure_tables(SellerSubmissionRow)
+        with get_session() as session:
+            row = session.query(SellerSubmissionRow).filter(
+                SellerSubmissionRow.id == submission_id, SellerSubmissionRow.contact == contact,
+            ).one_or_none()
+            if row is None or row.status not in ("pending", "rejected"):
+                return False
+            session.delete(row)
+            session.commit()
+        return True
+    except Exception:
+        logger.warning("Could not delete submission %s", submission_id, exc_info=True)
+        return False

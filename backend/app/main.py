@@ -43,7 +43,15 @@ from .models import (
     SellerSubmission,
 )
 from .recognition import _mock_enabled, recognize
-from .seller_auth import get_seller_dashboard, register_seller, verify_seller
+from .seller_auth import (
+    delete_own_product,
+    delete_own_submission,
+    get_seller_dashboard,
+    register_seller,
+    update_own_product,
+    update_own_submission,
+    verify_seller,
+)
 from .sellers import get_sellers, sellers_source
 from .storage import upload_product_photo
 
@@ -213,6 +221,89 @@ async def sellers_add_product(
     )
     saved = save_seller_submission(data)
     return {"status": "received", "saved": saved}
+
+
+@app.put("/sellers/me/products/{product_id}")
+async def sellers_update_product(
+    product_id: int,
+    seller: dict = Depends(require_seller),
+    product: str = Form(...),
+    category: str = Form(...),
+    price_rwf: Optional[int] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+) -> dict:
+    """Edit one of this seller's own live products. A new photo is re-run
+    through recognition, exactly like a fresh submission; without one, only
+    the name and price change."""
+    image_url = None
+    recognized: dict = {}
+    photo_attached = False
+    if photo is not None:
+        raw = await photo.read()
+        if raw:
+            photo_attached = True
+            content_type = photo.content_type or "image/jpeg"
+            image_url = upload_product_photo(raw, content_type)
+            recognized = _recognize_photo(raw, content_type)
+
+    ok = update_own_product(
+        seller["contact"], product_id,
+        product=product, category=category, price_rwf=price_rwf,
+        photo_attached=photo_attached, image_url=image_url, **recognized,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"status": "updated"}
+
+
+@app.delete("/sellers/me/products/{product_id}")
+def sellers_delete_product(product_id: int, seller: dict = Depends(require_seller)) -> dict:
+    """Remove one of this seller's own live products."""
+    ok = delete_own_product(seller["contact"], product_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"status": "deleted"}
+
+
+@app.put("/sellers/me/submissions/{submission_id}")
+async def sellers_update_submission(
+    submission_id: int,
+    seller: dict = Depends(require_seller),
+    product: str = Form(...),
+    category: str = Form(...),
+    price_rwf: Optional[int] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+) -> dict:
+    """Edit one of this seller's own pending or rejected submissions. A
+    rejected one moves back to pending for re-review."""
+    image_url = None
+    recognized: dict = {}
+    photo_attached = False
+    if photo is not None:
+        raw = await photo.read()
+        if raw:
+            photo_attached = True
+            content_type = photo.content_type or "image/jpeg"
+            image_url = upload_product_photo(raw, content_type)
+            recognized = _recognize_photo(raw, content_type)
+
+    ok = update_own_submission(
+        seller["contact"], submission_id,
+        product=product, category=category, price_rwf=price_rwf,
+        photo_attached=photo_attached, image_url=image_url, **recognized,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Submission not found or not editable")
+    return {"status": "updated"}
+
+
+@app.delete("/sellers/me/submissions/{submission_id}")
+def sellers_delete_submission(submission_id: int, seller: dict = Depends(require_seller)) -> dict:
+    """Remove one of this seller's own pending or rejected submissions."""
+    ok = delete_own_submission(seller["contact"], submission_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Submission not found or not editable")
+    return {"status": "deleted"}
 
 
 @app.post("/notify-me")

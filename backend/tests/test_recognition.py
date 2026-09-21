@@ -114,6 +114,24 @@ def test_sellers_add_product_requires_auth():
     assert r.status_code == 401
 
 
+def test_sellers_update_product_requires_auth():
+    r = client.put("/sellers/me/products/1", data={"product": "Test Item", "category": "earbuds"})
+    assert r.status_code == 401
+
+
+def test_sellers_delete_product_requires_auth():
+    assert client.delete("/sellers/me/products/1").status_code == 401
+
+
+def test_sellers_update_submission_requires_auth():
+    r = client.put("/sellers/me/submissions/1", data={"product": "Test Item", "category": "earbuds"})
+    assert r.status_code == 401
+
+
+def test_sellers_delete_submission_requires_auth():
+    assert client.delete("/sellers/me/submissions/1").status_code == 401
+
+
 def test_register_and_verify_seller_functions_without_db():
     from app.seller_auth import get_seller_dashboard, register_seller, verify_seller
 
@@ -121,6 +139,19 @@ def test_register_and_verify_seller_functions_without_db():
     assert ok is False
     assert verify_seller("+250700000001", "1234") is None
     assert get_seller_dashboard("+250700000001") == {"products": [], "submissions": []}
+
+
+def test_seller_crud_functions_are_noops_without_db():
+    from app.seller_auth import delete_own_product, delete_own_submission, update_own_product, update_own_submission
+
+    assert update_own_product(
+        "+250700000001", 1, product="X", category="y", price_rwf=1000,
+    ) is False
+    assert delete_own_product("+250700000001", 1) is False
+    assert update_own_submission(
+        "+250700000001", 1, product="X", category="y", price_rwf=1000,
+    ) is False
+    assert delete_own_submission("+250700000001", 1) is False
 
 
 def test_notify_me_succeeds_without_db():

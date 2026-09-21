@@ -150,6 +150,7 @@ class SellerInfo(BaseModel):
 
 class SellerOwnProduct(BaseModel):
     """One of a seller's own live (already-approved) products."""
+    id: int
     product: str
     category: str
     brand: Optional[str] = None
