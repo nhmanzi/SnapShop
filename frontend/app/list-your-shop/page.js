@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { exportTableToPdf } from "../exportPdf";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
 const SESSION_KEY = "snapshop_seller_session";
@@ -25,13 +26,22 @@ const STATUS_LABEL = { pending: "Pending review", approved: "Live", rejected: "N
 
 function EmptyProductsIllustration() {
   return (
-    <svg width="112" height="112" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 50 L60 35 L100 50 L100 90 L60 105 L20 90 Z"
-        stroke="var(--ink-text-dim)" strokeWidth="2.5" strokeLinejoin="round" fill="var(--paper-2)" />
-      <path d="M20 50 L60 65 L100 50" stroke="var(--ink-text-dim)" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-      <path d="M60 65 L60 105" stroke="var(--ink-text-dim)" strokeWidth="2.5" />
-      <circle cx="88" cy="28" r="16" fill="var(--signal)" />
-      <path d="M88 21 L88 35 M81 28 L95 28" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+    <svg width="140" height="140" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M43.1909 129.308L78.4999 118.244V72.8828L43.1909 83.8615V129.308Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M113.809 129.308L78.5 118.244V72.8828L113.809 83.8615V129.308Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M78.4999 140.464L43.1909 129.4V84.0391L78.4999 95.103V140.464Z" fill="var(--illust-fill-2)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M78.5 140.464L113.809 129.4V84.0391L78.5 95.103V140.464Z" fill="var(--illust-fill-2)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M78.5 72.8864L61.8989 60.4609L26 72.546L43.191 83.8651L78.5 72.8864Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M78.5 72.8864L95.1011 60.4609L131 72.546L113.809 83.8651L78.5 72.8864Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M43.191 84.0391L78.5 95.103L60.8876 106.337L26 94.7625L43.191 84.0391Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M113.809 84.0391L78.5 95.103L96.1124 106.337L131 94.7625L113.809 84.0391Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M88.3515 29.3359C93.2981 42.7603 94.7725 45.7431 95.2564 58.971C95.0703 61.9905 94.9549 65.2739 93.5313 67.9178C91.6302 71.9622 86.9802 74.7632 82.5869 74.8086C78.0609 74.8895 73.6238 72.1183 71.6267 67.8452C70.2216 65.2519 70.2663 61.7046 72.1937 59.3501C74.289 57.0919 77.9752 56.5289 80.6269 57.9399C83.5438 59.2798 85.2848 62.066 85.9297 65.0043C86.5745 67.9427 86.2912 71.1296 85.504 74.0273C83.8578 81.0747 82.4943 81.4157 78.457 93.3474" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeDasharray="4 4" />
+      <path d="M94.3716 22.2294C94.3601 24.2034 92.5231 25.4121 90.1936 24.7818C87.7408 24.3637 86.0049 23.9328 85.8931 22.171C85.9494 20.3642 87.9207 19.657 90.228 18.8599C92.9946 17.7605 94.215 20.3004 94.3716 22.2294Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M78.5225 28.2698C79.7656 29.5494 82.3863 29.9225 83.6634 27.9679C85.0637 25.8012 86.2624 24.2259 84.9746 22.7791C83.7315 21.4995 82.5218 22.361 79.7552 23.4603C77.5374 24.5918 77.0667 26.868 78.5225 28.2698Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M84.2584 20.1064C85.3897 19.6242 86.7448 19.9779 87.3495 20.891C87.6071 21.1804 87.9094 21.6369 87.9989 21.9713C88.9618 24.2218 88.6591 26.453 87.3598 26.9801C85.9373 27.7195 83.9775 26.4526 83.2274 24.3243C83.0483 23.6556 82.9587 23.3212 82.8244 22.8197C82.679 21.6044 83.1271 20.5885 84.2584 20.1064Z" fill="var(--illust-fill-1)" stroke="var(--illust-stroke)" strokeWidth="2" strokeMiterlimit="10" strokeLinejoin="round" />
+      <path d="M32.2573 56.3306H30.0672V54.1406H28.19V56.3306H26V58.2704H28.19V60.4604H30.0672V58.2704H32.2573V56.3306Z" fill="var(--illust-accent)" />
+      <path d="M37.0678 111.276H34.8778V109.086H33.0006V111.276H30.8105V113.215H33.0006V115.405H34.8778V113.215H37.0678V111.276Z" fill="var(--illust-accent)" />
+      <path d="M132.806 111.403L130.126 110.05L131.479 107.37L129.182 106.211L127.829 108.89L125.15 107.537L123.952 109.911L126.631 111.263L125.278 113.943L127.575 115.103L128.928 112.423L131.607 113.776L132.806 111.403Z" fill="var(--illust-accent)" />
     </svg>
   );
 }
@@ -45,6 +55,8 @@ export default function ListYourShopPage() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(null); // null = all, else "pending"|"approved"|"rejected"
+  const [search, setSearch] = useState("");
 
   const [loginForm, setLoginForm] = useState({ contact: "", pin: "" });
   const [loginError, setLoginError] = useState("");
@@ -260,6 +272,14 @@ export default function ListYourShopPage() {
   const liveCount = rows.filter((r) => r.status === "approved").length;
   const declinedCount = rows.filter((r) => r.status === "rejected").length;
 
+  const visibleRows = rows
+    .filter((r) => !statusFilter || r.status === statusFilter)
+    .filter((r) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      return r.product.toLowerCase().includes(q) || r.category.toLowerCase().includes(q);
+    });
+
   /* ----------------------------- RESTORING ----------------------------- */
   if (restoring) {
     return (
@@ -424,18 +444,27 @@ export default function ListYourShopPage() {
         </div>
 
         <div className="shop-stats">
-          <div className="shop-stat-card pending">
+          <button
+            className={`shop-stat-card pending${statusFilter === "pending" ? " shop-stat-active" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "pending" ? null : "pending")}
+          >
             <div className="shop-stat-value">{pendingCount}</div>
             <div className="shop-stat-label">Pending review</div>
-          </div>
-          <div className="shop-stat-card live">
+          </button>
+          <button
+            className={`shop-stat-card live${statusFilter === "approved" ? " shop-stat-active" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "approved" ? null : "approved")}
+          >
             <div className="shop-stat-value">{liveCount}</div>
             <div className="shop-stat-label">Live products</div>
-          </div>
-          <div className="shop-stat-card declined">
+          </button>
+          <button
+            className={`shop-stat-card declined${statusFilter === "rejected" ? " shop-stat-active" : ""}`}
+            onClick={() => setStatusFilter(statusFilter === "rejected" ? null : "rejected")}
+          >
             <div className="shop-stat-value">{declinedCount}</div>
             <div className="shop-stat-label">Declined</div>
-          </div>
+          </button>
         </div>
 
         <div className="shop-dash-section">
@@ -458,6 +487,34 @@ export default function ListYourShopPage() {
               <button className="shop-add-btn" onClick={openAddModal}>+ Add your first product</button>
             </div>
           ) : (
+            <>
+              <div className="admin-toolbar">
+                <input
+                  className="admin-search"
+                  placeholder="Search by product or category…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <button
+                  className="admin-export-btn"
+                  disabled={visibleRows.length === 0}
+                  onClick={() => exportTableToPdf(
+                    `${seller?.name || "Products"} — Products`,
+                    [
+                      { label: "Product", value: (r) => r.product },
+                      { label: "Category", value: (r) => r.category },
+                      { label: "Price (RWF)", value: (r) => (r.price_rwf != null ? money(r.price_rwf) : null) },
+                      { label: "Status", value: (r) => STATUS_LABEL[r.status] || r.status },
+                    ],
+                    visibleRows,
+                  )}
+                >
+                  Export PDF
+                </button>
+              </div>
+              {visibleRows.length === 0 ? (
+                <p className="admin-empty">No matches.</p>
+              ) : (
             <div className="shop-table-wrap">
               <table className="shop-table">
                 <thead>
@@ -471,7 +528,7 @@ export default function ListYourShopPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => {
+                  {visibleRows.map((r) => {
                     const rowKey = `${r.kind}-${r.id}`;
                     return (
                       <tr key={rowKey}>
@@ -507,6 +564,8 @@ export default function ListYourShopPage() {
                 </tbody>
               </table>
             </div>
+              )}
+            </>
           )}
         </div>
       </div>

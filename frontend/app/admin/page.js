@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { exportTableToPdf } from "../exportPdf";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000").replace(/\/+$/, "");
 const TOKEN_KEY = "snapshop_admin_token";
@@ -47,6 +48,14 @@ function money(n) {
   return n == null ? "—" : n.toLocaleString("en-US");
 }
 
+// Case-insensitive substring match across whichever of a row's fields are
+// present — used for the free-text search box on every tab.
+function rowMatches(row, query, fields) {
+  if (!query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  return fields.some((f) => String(row[f] || "").toLowerCase().includes(q));
+}
+
 function SkeletonCards({ count = 3 }) {
   return (
     <div className="admin-list">
@@ -80,6 +89,8 @@ export default function AdminPage() {
   const [summaryLoaded, setSummaryLoaded] = useState(false);
   const [loadedTabs, setLoadedTabs] = useState({});
   const [actionId, setActionId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [viewingSeller, setViewingSeller] = useState(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem(THEME_KEY);
@@ -97,6 +108,7 @@ export default function AdminPage() {
       loadSummary(token);
       loadTab(tab, token);
     }
+    setSearch("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, authed]);
 
@@ -273,58 +285,88 @@ export default function AdminPage() {
           <>
             {loading && !loadedTabs[tab] ? (
               <SkeletonCards />
-            ) : (
-              <>
-            {submissions.length === 0 && (
-              <p className="admin-empty">Nothing here yet.</p>
-            )}
-            <div className="admin-list">
-              {submissions.map((s) => (
-                <div className="admin-card" key={s.id}>
-                  {s.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.image_url} alt={s.product} className="admin-thumb" />
-                  )}
-                  <div className="admin-card-main">
-                    <div className="admin-shop-name">{s.shop_name}</div>
-                    <div className="admin-meta">
-                      <span className="chan">{s.channel}</span>
-                      {s.location} · {s.contact}
+            ) : (() => {
+                const filtered = submissions.filter((s) => rowMatches(s, search, ["shop_name", "product", "category", "contact"]));
+                const tabTitle = tab === "pending" ? "Pending Submissions" : tab === "approved" ? "Approved Submissions" : "Rejected Submissions";
+                const exportColumns = [
+                  { label: "Shop", value: (s) => s.shop_name },
+                  { label: "Channel", value: (s) => s.channel },
+                  { label: "Location", value: (s) => s.location },
+                  { label: "Contact", value: (s) => s.contact },
+                  { label: "Product", value: (s) => s.product },
+                  { label: "Category", value: (s) => s.category },
+                  { label: "Price (RWF)", value: (s) => (s.price_rwf != null ? money(s.price_rwf) : null) },
+                ];
+                return (
+                  <>
+                    <div className="admin-toolbar">
+                      <input
+                        className="admin-search"
+                        placeholder="Search by shop or product…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                      <button
+                        className="admin-export-btn"
+                        disabled={filtered.length === 0}
+                        onClick={() => exportTableToPdf(tabTitle, exportColumns, filtered)}
+                      >
+                        Export PDF
+                      </button>
                     </div>
-                    <div className="admin-product">
-                      {s.product} <span className="admin-category">({s.category})</span>
-                      {s.price_rwf != null && <> — {money(s.price_rwf)} RWF</>}
-                    </div>
-                    {s.recognized_category && (
-                      <div className="admin-meta">
-                        Photo recognized as: {s.recognized_category}
-                        {s.recognized_brand && <> · {s.recognized_brand}</>}
+                    {filtered.length === 0 ? (
+                      <p className="admin-empty">{submissions.length === 0 ? "Nothing here yet." : "No matches."}</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th></th>
+                              <th>Shop</th>
+                              <th>Product</th>
+                              <th>Category</th>
+                              <th>Price</th>
+                              {tab === "pending" && <th></th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map((s) => (
+                              <tr key={s.id}>
+                                <td>
+                                  {s.image_url && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={s.image_url} alt={s.product} className="admin-table-thumb" />
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="admin-table-name">{s.shop_name}</div>
+                                  <div className="admin-meta"><span className="chan">{s.channel}</span>{s.location} · {s.contact}</div>
+                                </td>
+                                <td>{s.product}</td>
+                                <td>
+                                  {s.category}
+                                  {s.recognized_category && (
+                                    <div className="admin-meta">Photo: {s.recognized_category}{s.recognized_brand && <> · {s.recognized_brand}</>}</div>
+                                  )}
+                                </td>
+                                <td>{s.price_rwf != null ? `${money(s.price_rwf)} RWF` : "—"}</td>
+                                {tab === "pending" && (
+                                  <td>
+                                    <div className="admin-table-actions">
+                                      <button className="admin-approve" disabled={actionId === s.id} onClick={() => act(s.id, "approve")}>Approve</button>
+                                      <button className="admin-reject" disabled={actionId === s.id} onClick={() => act(s.id, "reject")}>Reject</button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
-                  </div>
-                  {tab === "pending" && (
-                    <div className="admin-actions">
-                      <button
-                        className="admin-approve"
-                        disabled={actionId === s.id}
-                        onClick={() => act(s.id, "approve")}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        className="admin-reject"
-                        disabled={actionId === s.id}
-                        onClick={() => act(s.id, "reject")}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-              </>
-            )}
+                  </>
+                );
+              })()}
           </>
         )}
 
@@ -332,42 +374,67 @@ export default function AdminPage() {
           <>
             {loading && !loadedTabs.catalog ? (
               <SkeletonCards />
-            ) : (
-              <>
-            {sellers.length === 0 && (
-              <p className="admin-empty">No sellers in the database yet.</p>
-            )}
-            <div className="admin-list">
-              {sellers.map((s) => (
-                <div className="admin-card admin-card-block" key={s.seller_id}>
-                  <div className="admin-shop-name">{s.name}</div>
-                  <div className="admin-meta">
-                    <span className="chan">{s.channel}</span>
-                    {s.location} · {s.contact}
-                  </div>
-                  <div className="admin-catalog-products">
-                    {s.products.map((p, i) => (
-                      <div className="admin-catalog-product" key={i}>
-                        {p.image_url && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.image_url} alt={p.product} className="admin-thumb" />
-                        )}
-                        <div>
-                          <div className="admin-product">
-                            {p.product} <span className="admin-category">({p.category})</span>
-                          </div>
-                          {p.price_rwf != null && (
-                            <div className="admin-meta">{money(p.price_rwf)} RWF</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-              </>
-            )}
+            ) : (() => {
+                const filtered = sellers.filter((s) => rowMatches(s, search, ["name", "location", "contact"]));
+                const exportColumns = [
+                  { label: "Seller", value: (s) => s.name },
+                  { label: "Channel", value: (s) => s.channel },
+                  { label: "Location", value: (s) => s.location },
+                  { label: "Contact", value: (s) => s.contact },
+                  { label: "Products", value: (s) => s.products.length },
+                ];
+                return (
+                  <>
+                    <div className="admin-toolbar">
+                      <input
+                        className="admin-search"
+                        placeholder="Search by seller or location…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                      <button
+                        className="admin-export-btn"
+                        disabled={filtered.length === 0}
+                        onClick={() => exportTableToPdf("Live Sellers", exportColumns, filtered)}
+                      >
+                        Export PDF
+                      </button>
+                    </div>
+                    {filtered.length === 0 ? (
+                      <p className="admin-empty">{sellers.length === 0 ? "No sellers in the database yet." : "No matches."}</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Seller</th>
+                            <th>Channel</th>
+                            <th>Location</th>
+                            <th>Contact</th>
+                            <th>Products</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map((s) => (
+                            <tr key={s.seller_id}>
+                              <td className="admin-table-name">{s.name}</td>
+                              <td><span className="chan">{s.channel}</span></td>
+                              <td>{s.location}</td>
+                              <td>{s.contact}</td>
+                              <td>{s.products.length}</td>
+                              <td>
+                                <button className="admin-row-btn" onClick={() => setViewingSeller(s)}>View more</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    )}
+                  </>
+                );
+              })()}
           </>
         )}
 
@@ -375,28 +442,108 @@ export default function AdminPage() {
           <>
             {loading && !loadedTabs.demand ? (
               <SkeletonCards />
-            ) : (
-              <>
-            {demand.length === 0 && (
-              <p className="admin-empty">No unmatched searches recorded yet.</p>
-            )}
-            <div className="admin-list">
-              {demand.map((d) => (
-                <div className="admin-card admin-card-block" key={d.id}>
-                  <div className="admin-shop-name">{d.category || "Unknown category"}</div>
-                  <div className="admin-meta">
-                    {d.brand && <>Brand: {d.brand} · </>}
-                    Contact: {d.contact}
-                  </div>
-                  {d.note && <div className="admin-product">{d.note}</div>}
-                </div>
-              ))}
-            </div>
-              </>
-            )}
+            ) : (() => {
+                const filtered = demand.filter((d) => rowMatches(d, search, ["category", "brand", "contact", "note"]));
+                const exportColumns = [
+                  { label: "Category", value: (d) => d.category || "Unknown" },
+                  { label: "Brand", value: (d) => d.brand },
+                  { label: "Contact", value: (d) => d.contact },
+                  { label: "Note", value: (d) => d.note },
+                ];
+                return (
+                  <>
+                    <div className="admin-toolbar">
+                      <input
+                        className="admin-search"
+                        placeholder="Search by category or contact…"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                      <button
+                        className="admin-export-btn"
+                        disabled={filtered.length === 0}
+                        onClick={() => exportTableToPdf("Unmatched Demand", exportColumns, filtered)}
+                      >
+                        Export PDF
+                      </button>
+                    </div>
+                    {filtered.length === 0 ? (
+                      <p className="admin-empty">{demand.length === 0 ? "No unmatched searches recorded yet." : "No matches."}</p>
+                    ) : (
+                      <div className="admin-table-wrap">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>Category</th>
+                            <th>Brand</th>
+                            <th>Contact</th>
+                            <th>Note</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map((d) => (
+                            <tr key={d.id}>
+                              <td className="admin-table-name">{d.category || "Unknown"}</td>
+                              <td>{d.brand || "—"}</td>
+                              <td>{d.contact}</td>
+                              <td>{d.note || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    )}
+                  </>
+                );
+              })()}
           </>
         )}
       </div>
+
+      {viewingSeller && (
+        <div className="modal-overlay" onClick={() => setViewingSeller(null)}>
+          <div className="admin-modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>{viewingSeller.name}</h2>
+            <p className="admin-modal-sub">
+              <span className="chan">{viewingSeller.channel}</span> {viewingSeller.location} · {viewingSeller.contact}
+            </p>
+            {viewingSeller.products.length === 0 ? (
+              <p className="admin-empty">No products yet.</p>
+            ) : (
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Product</th>
+                      <th>Category</th>
+                      <th>Brand</th>
+                      <th>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewingSeller.products.map((p, i) => (
+                      <tr key={i}>
+                        <td>
+                          {p.image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.image_url} alt={p.product} className="admin-table-thumb" />
+                          )}
+                        </td>
+                        <td className="admin-table-name">{p.product}</td>
+                        <td>{p.category}</td>
+                        <td>{p.brand || "—"}</td>
+                        <td>{p.price_rwf != null ? `${money(p.price_rwf)} RWF` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <button className="shop-link-btn" onClick={() => setViewingSeller(null)}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
