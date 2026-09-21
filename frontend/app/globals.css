@@ -228,7 +228,7 @@ body{
 
 /* ---------- seller dashboard ---------- */
 .shop-dash-page{min-height:100dvh; width:100%; background:var(--paper); color:var(--ink-text)}
-.shop-dash{max-width:640px; margin:0 auto; padding:28px 20px 60px; box-sizing:border-box}
+.shop-dash{max-width:960px; margin:0 auto; padding:28px 20px 60px; box-sizing:border-box}
 .shop-dash-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:24px}
 .shop-dash-head h1{font-family:var(--font-display),sans-serif; font-weight:800; font-size:24px; letter-spacing:-.02em}
 .shop-dash-sub{font-size:13px; color:var(--ink-text-dim); margin-top:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
@@ -240,6 +240,49 @@ body{
 .shop-status-pending{background:#FCEED3; color:#A15C00}
 .shop-status-approved{background:#DCF3E4; color:#1E7A3D}
 .shop-status-rejected{background:#FADBD8; color:#943126}
+
+.shop-stats{display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-bottom:20px}
+.shop-stat-card{background:#fff; border:1px solid var(--line-paper); border-radius:16px; padding:16px;
+  display:flex; flex-direction:column; gap:4px}
+.shop-stat-value{font-family:var(--font-display),sans-serif; font-weight:800; font-size:26px;
+  letter-spacing:-.02em; color:var(--ink-text)}
+.shop-stat-label{font-size:12px; font-weight:600; color:var(--ink-text-dim)}
+.shop-stat-card.pending .shop-stat-value{color:#A15C00}
+.shop-stat-card.live .shop-stat-value{color:#1E7A3D}
+.shop-stat-card.declined .shop-stat-value{color:#943126}
+
+.shop-section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px}
+.shop-add-btn{padding:10px 18px; border-radius:12px; background:var(--signal); color:#fff; border:none;
+  font-family:var(--font-body),sans-serif; font-weight:700; font-size:13px; cursor:pointer}
+
+.shop-empty-state{display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:36px 20px; gap:6px}
+.shop-empty-title{font-family:var(--font-display),sans-serif; font-weight:700; font-size:16px;
+  color:var(--ink-text); margin-top:8px}
+.shop-empty-text{font-size:13px; color:var(--ink-text-dim); max-width:320px; margin-bottom:12px}
+
+.shop-table-wrap{overflow-x:auto}
+.shop-table{width:100%; border-collapse:collapse; font-size:13px}
+.shop-table th{text-align:left; font-size:11px; font-weight:700; color:var(--ink-text-dim);
+  text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:2px solid var(--line-paper); white-space:nowrap}
+.shop-table td{padding:10px; border-bottom:1px solid var(--line-paper); vertical-align:middle}
+.shop-table tr:last-child td{border-bottom:none}
+.shop-table-thumb{width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0}
+.shop-table-name{font-weight:600; color:var(--ink-text)}
+.shop-table-actions{display:flex; gap:6px; white-space:nowrap}
+.shop-row-btn{padding:6px 10px; border-radius:8px; border:1px solid var(--line-paper); background:var(--paper-2);
+  color:var(--ink-text); font-family:var(--font-body),sans-serif; font-weight:600; font-size:11px; cursor:pointer}
+.shop-row-btn:disabled{opacity:.5; cursor:default}
+.shop-row-btn.danger{color:#943126; border-color:#F3C6BE}
+
+.modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center;
+  justify-content:center; padding:20px; z-index:50; box-sizing:border-box}
+.modal-dialog{background:var(--paper); color:var(--ink-text); border-radius:20px; padding:26px;
+  width:100%; max-width:440px; max-height:88vh; overflow-y:auto; box-sizing:border-box;
+  box-shadow:0 24px 60px rgba(0,0,0,.4)}
+.modal-dialog h2{font-family:var(--font-display),sans-serif; font-weight:800; font-size:20px;
+  letter-spacing:-.02em; margin-bottom:16px}
+.modal-close{position:absolute; top:18px; right:18px}
 
 /* ---------- admin portal ---------- */
 .admin-shell{

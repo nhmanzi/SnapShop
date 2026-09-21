@@ -23,6 +23,19 @@ function money(n) {
 
 const STATUS_LABEL = { pending: "Pending review", approved: "Live", rejected: "Not approved" };
 
+function EmptyProductsIllustration() {
+  return (
+    <svg width="112" height="112" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 50 L60 35 L100 50 L100 90 L60 105 L20 90 Z"
+        stroke="var(--ink-text-dim)" strokeWidth="2.5" strokeLinejoin="round" fill="var(--paper-2)" />
+      <path d="M20 50 L60 65 L100 50" stroke="var(--ink-text-dim)" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
+      <path d="M60 65 L60 105" stroke="var(--ink-text-dim)" strokeWidth="2.5" />
+      <circle cx="88" cy="28" r="16" fill="var(--signal)" />
+      <path d="M88 21 L88 35 M81 28 L95 28" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function ListYourShopPage() {
   // "choose" | "login" | "register" | "dashboard"
   const [screen, setScreen] = useState("choose");
@@ -43,10 +56,14 @@ export default function ListYourShopPage() {
   const [regError, setRegError] = useState("");
   const [regBusy, setRegBusy] = useState(false);
 
+  // Modal used for both adding a new product and editing an existing row.
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState(null); // null = adding; otherwise the row being edited
   const [productForm, setProductForm] = useState({ product: "", category: "", price_rwf: "" });
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [addStatus, setAddStatus] = useState("idle"); // idle | sending | sent | error
+  const [formStatus, setFormStatus] = useState("idle"); // idle | sending | error
+  const [deleteBusyKey, setDeleteBusyKey] = useState(null);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
@@ -161,9 +178,35 @@ export default function ListYourShopPage() {
     setPhotoPreview(URL.createObjectURL(blob));
   }
 
-  async function handleAddProduct(e) {
+  function openAddModal() {
+    setEditingRow(null);
+    setProductForm({ product: "", category: "", price_rwf: "" });
+    setPhoto(null);
+    setPhotoPreview(null);
+    setFormStatus("idle");
+    setModalOpen(true);
+  }
+
+  function openEditModal(row) {
+    setEditingRow(row);
+    setProductForm({
+      product: row.product, category: row.category,
+      price_rwf: row.price_rwf != null ? String(row.price_rwf) : "",
+    });
+    setPhoto(null);
+    setPhotoPreview(row.image_url || null);
+    setFormStatus("idle");
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditingRow(null);
+  }
+
+  async function handleSubmitForm(e) {
     e.preventDefault();
-    setAddStatus("sending");
+    setFormStatus("sending");
     try {
       const fd = new FormData();
       fd.append("product", productForm.product);
@@ -171,22 +214,51 @@ export default function ListYourShopPage() {
       if (productForm.price_rwf) fd.append("price_rwf", productForm.price_rwf);
       if (photo) fd.append("photo", photo, "product.jpg");
 
-      const res = await fetch(API_BASE + "/sellers/me/products", {
-        method: "POST",
+      const isEdit = editingRow !== null;
+      const path = isEdit
+        ? `/sellers/me/${editingRow.kind === "product" ? "products" : "submissions"}/${editingRow.id}`
+        : "/sellers/me/products";
+      const res = await fetch(API_BASE + path, {
+        method: isEdit ? "PUT" : "POST",
         headers: { "x-seller-contact": session.contact, "x-seller-pin": session.pin },
         body: fd,
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
-      setAddStatus("sent");
-      setProductForm({ product: "", category: "", price_rwf: "" });
-      setPhoto(null);
-      setPhotoPreview(null);
-      loadDashboard(session); // refresh the submissions list to show the new one
-      setTimeout(() => setAddStatus("idle"), 2500);
+      closeModal();
+      loadDashboard(session);
     } catch {
-      setAddStatus("error");
+      setFormStatus("error");
     }
   }
+
+  async function handleDelete(row) {
+    const kind = row.kind === "product" ? "products" : "submissions";
+    if (!window.confirm(`Remove "${row.product}"?`)) return;
+    setDeleteBusyKey(`${row.kind}-${row.id}`);
+    try {
+      await fetch(`${API_BASE}/sellers/me/${kind}/${row.id}`, {
+        method: "DELETE",
+        headers: { "x-seller-contact": session.contact, "x-seller-pin": session.pin },
+      });
+      loadDashboard(session);
+    } catch {
+      // best effort — the row just won't disappear if this failed
+    } finally {
+      setDeleteBusyKey(null);
+    }
+  }
+
+  // One row per real product: live products as "approved", plus pending/
+  // rejected submissions — an already-approved submission is skipped here
+  // since the resulting live product already represents it, avoiding the
+  // duplicate entries that showed up when these were two separate lists.
+  const rows = [
+    ...products.map((p) => ({ ...p, status: "approved", kind: "product" })),
+    ...submissions.filter((s) => s.status !== "approved").map((s) => ({ ...s, kind: "submission" })),
+  ];
+  const pendingCount = rows.filter((r) => r.status === "pending").length;
+  const liveCount = rows.filter((r) => r.status === "approved").length;
+  const declinedCount = rows.filter((r) => r.status === "rejected").length;
 
   /* ----------------------------- RESTORING ----------------------------- */
   if (restoring) {
@@ -351,101 +423,143 @@ export default function ListYourShopPage() {
           <button className="shop-link-btn" onClick={logout}>Log out</button>
         </div>
 
-        <div className="shop-dash-section">
-          <h2>Add a product</h2>
-          <form onSubmit={handleAddProduct} className="shop-form">
-            <label>
-              Product name
-              <input
-                required
-                value={productForm.product}
-                onChange={(e) => setProductForm((f) => ({ ...f, product: e.target.value }))}
-                placeholder="e.g. Anker Soundcore Life P2"
-              />
-            </label>
-            <label>
-              Category
-              <input
-                required
-                value={productForm.category}
-                onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value }))}
-                placeholder="e.g. earbuds"
-              />
-            </label>
-            <label>
-              Price in RWF (optional)
-              <input
-                type="number"
-                min="0"
-                value={productForm.price_rwf}
-                onChange={(e) => setProductForm((f) => ({ ...f, price_rwf: e.target.value }))}
-              />
-            </label>
-            <label>
-              Product photo (optional)
-              <input type="file" accept="image/*" onChange={handlePhotoChange} />
-            </label>
-            {photoPreview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoPreview} alt="Selected product" className="shop-photo-preview" />
-            )}
-            <button type="submit" className="upload-btn" disabled={addStatus === "sending"}>
-              {addStatus === "sending" ? "Adding…" : "Add product"}
-            </button>
-            {addStatus === "sent" && <p className="shop-sent-msg">Added — awaiting review.</p>}
-            {addStatus === "error" && <p className="shop-error">Something went wrong — try again.</p>}
-          </form>
+        <div className="shop-stats">
+          <div className="shop-stat-card pending">
+            <div className="shop-stat-value">{pendingCount}</div>
+            <div className="shop-stat-label">Pending review</div>
+          </div>
+          <div className="shop-stat-card live">
+            <div className="shop-stat-value">{liveCount}</div>
+            <div className="shop-stat-label">Live products</div>
+          </div>
+          <div className="shop-stat-card declined">
+            <div className="shop-stat-value">{declinedCount}</div>
+            <div className="shop-stat-label">Declined</div>
+          </div>
         </div>
 
         <div className="shop-dash-section">
-          <h2>Your submissions {loading && <span className="shop-dash-loading">refreshing…</span>}</h2>
-          {submissions.length === 0 ? (
-            <p className="admin-empty">Nothing submitted yet.</p>
+          <div className="shop-section-head">
+            <h2 style={{ marginBottom: 0 }}>
+              Your products {loading && <span className="shop-dash-loading">refreshing…</span>}
+            </h2>
+            {rows.length > 0 && (
+              <button className="shop-add-btn" onClick={openAddModal}>+ Add new product</button>
+            )}
+          </div>
+
+          {rows.length === 0 ? (
+            <div className="shop-empty-state">
+              <EmptyProductsIllustration />
+              <p className="shop-empty-title">No products yet</p>
+              <p className="shop-empty-text">
+                Add your first product so nearby buyers can find your shop when they scan for it.
+              </p>
+              <button className="shop-add-btn" onClick={openAddModal}>+ Add your first product</button>
+            </div>
           ) : (
-            <div className="admin-list">
-              {submissions.map((s) => (
-                <div className="admin-card" key={s.id}>
-                  {s.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.image_url} alt={s.product} className="admin-thumb" />
-                  )}
-                  <div className="admin-card-main">
-                    <div className="admin-shop-name">{s.product}</div>
-                    <div className="admin-meta">
-                      {s.category}
-                      {s.price_rwf != null && <> · {money(s.price_rwf)} RWF</>}
-                    </div>
-                  </div>
-                  <span className={`shop-status shop-status-${s.status}`}>{STATUS_LABEL[s.status] || s.status}</span>
-                </div>
-              ))}
+            <div className="shop-table-wrap">
+              <table className="shop-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const rowKey = `${r.kind}-${r.id}`;
+                    return (
+                      <tr key={rowKey}>
+                        <td>
+                          {r.image_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={r.image_url} alt={r.product} className="shop-table-thumb" />
+                          )}
+                        </td>
+                        <td className="shop-table-name">{r.product}</td>
+                        <td>{r.category}</td>
+                        <td>{r.price_rwf != null ? `${money(r.price_rwf)} RWF` : "—"}</td>
+                        <td>
+                          <span className={`shop-status shop-status-${r.status}`}>
+                            {STATUS_LABEL[r.status] || r.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="shop-table-actions">
+                            <button className="shop-row-btn" onClick={() => openEditModal(r)}>Edit</button>
+                            <button
+                              className="shop-row-btn danger"
+                              disabled={deleteBusyKey === rowKey}
+                              onClick={() => handleDelete(r)}
+                            >
+                              {deleteBusyKey === rowKey ? "…" : "Delete"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-
-        {products.length > 0 && (
-          <div className="shop-dash-section">
-            <h2>Live on SnapShop</h2>
-            <div className="admin-list">
-              {products.map((p, i) => (
-                <div className="admin-card" key={i}>
-                  {p.image_url && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image_url} alt={p.product} className="admin-thumb" />
-                  )}
-                  <div className="admin-card-main">
-                    <div className="admin-shop-name">{p.product}</div>
-                    <div className="admin-meta">
-                      {p.category}
-                      {p.price_rwf != null && <> · {money(p.price_rwf)} RWF</>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h2>{editingRow ? "Edit product" : "Add a product"}</h2>
+            <form onSubmit={handleSubmitForm} className="shop-form">
+              <label>
+                Product name
+                <input
+                  required
+                  value={productForm.product}
+                  onChange={(e) => setProductForm((f) => ({ ...f, product: e.target.value }))}
+                  placeholder="e.g. Anker Soundcore Life P2"
+                />
+              </label>
+              <label>
+                Category
+                <input
+                  required
+                  value={productForm.category}
+                  onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="e.g. earbuds"
+                />
+              </label>
+              <label>
+                Price in RWF (optional)
+                <input
+                  type="number"
+                  min="0"
+                  value={productForm.price_rwf}
+                  onChange={(e) => setProductForm((f) => ({ ...f, price_rwf: e.target.value }))}
+                />
+              </label>
+              <label>
+                {editingRow ? "Replace product photo (optional)" : "Product photo (optional)"}
+                <input type="file" accept="image/*" onChange={handlePhotoChange} />
+              </label>
+              {photoPreview && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoPreview} alt="Selected product" className="shop-photo-preview" />
+              )}
+              <button type="submit" className="upload-btn" disabled={formStatus === "sending"}>
+                {formStatus === "sending" ? "Saving…" : editingRow ? "Save changes" : "Add product"}
+              </button>
+              {formStatus === "error" && <p className="shop-error">Something went wrong — try again.</p>}
+              <button type="button" className="shop-link-btn" onClick={closeModal}>Cancel</button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
