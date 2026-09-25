@@ -417,7 +417,11 @@ export default function Viewfinder() {
                       <span className="chan">{s.channel}</span>
                       {s.location}
                     </div>
-                    {s.match_reason && <div className="match-why">Matched on {s.match_reason}</div>}
+                    {s.similar ? (
+                      <div className="match-why">Similar item</div>
+                    ) : (
+                      s.match_reason && <div className="match-why">Matched on {s.match_reason}</div>
+                    )}
                   </div>
                   <div className="seller-right">
                     <div className="price">

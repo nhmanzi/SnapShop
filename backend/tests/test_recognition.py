@@ -343,3 +343,36 @@ def test_resolved_product_fields_falls_back_without_recognition():
     assert brand is None
     assert model is None
     assert keywords == sorted({"board", "marker"})
+
+
+def test_category_match_ignores_word_order_and_plural_forms():
+    from app.matching import _score
+    from app.models import RecognizedItem
+
+    product = {"category": "bottled water", "keywords": ["bottles", "water"]}
+    for scanned in ("water bottle", "bottled water", "Water Bottles"):
+        item = RecognizedItem(category=scanned, confidence=0.9)
+        score, reason = _score(item, product)
+        assert "category" in reason, scanned
+        assert score >= 0.5, scanned
+
+
+def test_matching_tops_up_to_two_sellers_with_similar_items(monkeypatch):
+    from app import matching
+    from app.models import RecognizedItem
+
+    def seller(sid, category, keywords):
+        return {"seller_id": sid, "name": sid, "channel": "shop", "location": "Kigali",
+                "contact": "0780000000",
+                "inventory": [{"product": sid, "category": category, "keywords": keywords}]}
+
+    monkeypatch.setattr(matching, "get_sellers", lambda: [
+        seller("exact", "water bottle", ["water", "bottle"]),
+        seller("close", "flask", ["water"]),
+        seller("unrelated", "sneaker", ["shoe"]),
+    ])
+    results = matching.match(RecognizedItem(category="bottled water", attributes=["plastic", "water"], confidence=0.9))
+
+    assert [r.seller_id for r in results] == ["exact", "close"]
+    assert results[0].similar is False and results[0].match_score >= 0.5
+    assert results[1].similar is True and 0 < results[1].match_score < 0.5

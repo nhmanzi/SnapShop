@@ -29,6 +29,7 @@ class SellerMatch(BaseModel):
     match_score: float = 0.0
     match_reason: Optional[str] = None
     matched_product: Optional[str] = None
+    similar: bool = False   # below the match threshold, shown only to reach the minimum result count
 
 
 class RecognizeResponse(BaseModel):
